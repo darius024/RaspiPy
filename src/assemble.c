@@ -7,7 +7,7 @@ int main(int argc, char **argv) {
 		printf("%s\n", argv[2]);
 	}	
 	else {
-		fprintf(stderr, "More arguments needed\n");
+		fprintf(stderr, "Less arguments needed\n");
 	}
 	return EXIT_SUCCESS;
 }

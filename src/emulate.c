@@ -6,6 +6,9 @@
 
 #define MEMORY_SIZE (2 * 1024 * 1024)
 
+// Declarations
+extern int64_t shift(int64_t, unsigned short, unsigned short, bool);
+
 // Memory
 unsigned char mem[MEMORY_SIZE];
 
@@ -216,7 +219,7 @@ category decode(int instr)
     return Err;
 }
 
-// Data Processing Instruction (Immediate)
+// 1.4 Data Processing Instruction (Immediate)
 
 struct dpimm
 {
@@ -408,8 +411,236 @@ void dataProcessingImmInstruction(int instr)
 }
 
 
+// 1.5 Data Processing Instruction (Register)
 
-// Branch Instructions
+struct dpr
+{
+    bool sf;
+    unsigned short opc;
+    bool m;
+    unsigned short opr;
+    unsigned short rm;
+    unsigned short operand;
+    unsigned short rn;
+    unsigned short rd;
+} dpr;
+
+void decodeDPR(int instr)
+{
+    getBitsShortInt(instr, 5, &dpr.rd);
+    instr >>= 5;
+    getBitsShortInt(instr, 5, &dpr.rn);
+    instr >>= 5;
+    getBitsShortInt(instr, 6, &dpr.operand);
+    instr >>= 6;
+    getBitsShortInt(instr, 5, &dpr.rm);
+    instr >>= 5;
+    getBitsShortInt(instr, 4, &dpr.opr);
+    instr >>= 7;
+    dpr.m = instr % 2;
+    instr >>= 1;
+    getBitsShortInt(instr, 2, &dpr.opc);
+    instr >>= 2;
+    dpr.sf = instr % 2;
+
+    // Check for 32-bit or 64-bit mode for Rd
+    int64_t mask = 0xFFFFFFFF;
+    if (dpr.sf == 0)
+    {
+        state.R[dpr.rd] &= mask;
+        state.R[dpr.rn] &= mask;
+        state.R[dpr.rm] &= mask;
+    }
+
+    // Type of data processing operation
+    // Support (M + opr): arithmetic - 01xx0, bit-logic - 00xxx, multiply - 11000
+    if (dpr.m == 0)
+    {
+        unsigned short shiftMode = (dpr.opr >> 1) % 4;
+
+        // Check arithmetic correct bits
+        if ((dpr.opr >> 3) % 2 == 1)
+        {
+            if (shiftMode == 3 || dpr.opr % 2 == 1)
+            {
+                perror("Invalid shift for arithmetic instruction.");
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+    else
+    {
+        if (dpr.opr != 8 && dpr.opc != 0)
+        {
+            perror("Invalid multiply instruction.");
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
+void updateFlagsAnd(int64_t a, int64_t b)
+{
+    int64_t res = a & b;
+
+    // Sign Flag (N)
+    state.pstate.N = (!dpr.sf)
+                         ? ((int32_t)(res & 0xFFFFFFFF) < 0)
+                         : (res < 0);
+    // Zero Flag (Z)
+    state.pstate.Z = (res == 0);
+    // Carry Flag (C)
+    state.pstate.C = 0;
+    // Overflow Flag (V)
+    state.pstate.V = 0;
+}
+
+void executeDPR(void)
+{
+    if (dpr.m == 0)
+    {
+        unsigned short shiftMode = (dpr.opr >> 1) % 4;
+        int64_t *Rd = (dpr.rd == 31)
+                          ? (dpr.opc % 2 == 0) ? &state.SP : &state.ZR
+                          : &state.R[dpr.rd];
+        ;
+        // Compute offset
+        int64_t op2 = shift(state.R[dpr.rm], dpr.operand, shiftMode, dpr.sf);
+
+        // Arithmetic
+        if ((dpr.opr >> 3) % 2 == 1)
+        {
+            // Simulate execution from opc (same as for arithmetic immediate)
+            switch (dpr.opc)
+            {
+            case 0: // Add
+                *Rd = dpr.rn + op2;
+                break;
+            case 1: // Add and set flags
+                if (dpr.rd != 31)
+                    *Rd = dpr.rn + op2;
+                updateFlagsAdd(dpr.rn, op2);
+                break;
+            case 2: // Subtract
+                *Rd = dpr.rn - op2;
+                break;
+            case 3: // Subtract and set flags
+                if (dpr.rd != 31)
+                    *Rd = dpr.rn - op2;
+                updateFlagsSub(dpr.rn, op2);
+                break;
+            default:
+                // Can't reach here
+                break;
+            }
+        }
+        // Logical
+        else
+        {
+            bool n = dpr.opr % 2;
+
+            // Simulate execution from opc
+            Rd = (dpr.rd == 31)
+                     ? (dpr.opc % 2 == 0) ? &state.SP : &state.ZR
+                     : &state.R[dpr.rd];
+
+            switch (dpr.opc)
+            {
+            case 0: // Bitwise AND and Bit clear
+                *Rd = (n) ? dpr.rn & op2 : dpr.rn & ~op2;
+                break;
+            case 1: // Bitwise inclusive OR and NOR
+                *Rd = (n) ? dpr.rn | op2 : dpr.rn | ~op2;
+                break;
+            case 2: // Bitwise exclusive OR and NOR
+                *Rd = (n) ? dpr.rn ^ op2 : dpr.rn ^ ~op2;
+                break;
+            case 3: // Bitwise AND and Bit clear, setting flags
+                if (dpr.rd != 31)
+                    *Rd = (n) ? dpr.rn & op2 : dpr.rn & ~op2;
+                updateFlagsAnd(dpr.rn, op2);
+                break;
+            default:
+                // Can't reach here
+                break;
+            }
+        }
+    }
+    else
+    {
+        unsigned short ra;
+        bool x = (dpr.operand >> 5) % 2;
+        getBitsShortInt(dpr.operand, 5, &ra);
+
+        if (dpr.rd == 31)
+            return;
+
+        state.R[dpr.rd] = (!x)
+                              ? state.R[ra] + (state.R[dpr.rn] * state.R[dpr.rm])  // Multiply-Add
+                              : state.R[ra] - (state.R[dpr.rn] * state.R[dpr.rm]); // Multiply-Sub
+    }
+}
+
+void dataProcessingRInstruction(int instr)
+{
+    decodeDPR(instr);
+    executeDPR();
+}
+
+// 1.6 Bitwise Shifts
+
+int64_t shift(int64_t value, unsigned short amount, unsigned short mode, bool nobits)
+{
+
+    if (amount < 0 || amount >= (nobits ? 32 : 64))
+    {
+        perror("Shift amount out of range.");
+        exit(EXIT_FAILURE);
+    }
+
+    int64_t mask32 = 0xFFFFFFFF;
+    int32_t value32 = value & mask32;
+
+    switch (mode)
+    {
+    case 0: // Logical Shift Left (lsl)
+    {
+        return (!nobits) ? (value32 << amount) & mask32
+                         : (value << amount);
+        break;
+    }
+    case 1: // Logical Shift Right (lsr)
+    {
+        return (!nobits) ? ((uint32_t)value32 >> amount) & mask32
+                         : (uint64_t)value >> amount;
+        break;
+    }
+    case 2: // Arithmetic Shift Right (asr)
+    {
+        return (!nobits) ? (value32 >> amount) & mask32
+                         : value >> amount;
+        break;
+    }
+    case 3: // Rotate Right (ror)
+    {
+        short int rotateAmount = (!nobits) ? 32 - amount
+                                           : 64 - amount;
+        int64_t bitsToRotate = value << rotateAmount;
+
+        return (!nobits) ? (((uint32_t)value32 >> amount) | bitsToRotate) & mask32
+                         : ((uint64_t)value >> amount) | bitsToRotate;
+        break;
+    }
+    default:
+        perror("Unsupported shift mode. Provide a mode between 0 and 3.");
+        exit(EXIT_FAILURE);
+        break;
+    }
+}
+
+
+
+
+// 1.8 Branch Instructions
 
 struct br
 {
@@ -538,7 +769,7 @@ int main(int argc, char **argv)
             dataProcessingImmInstruction(instr);
             break;
         case DPReg:
-            // Code
+            dataProcessingRInstruction(instr);
             break;
         case LS:
             // Code

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #define MEMORY_SIZE (2 * 1024 * 1024)
 
@@ -26,6 +27,20 @@ struct estate
 };
 struct estate state = {0};
 
+// Categories of instructions to support
+typedef enum
+{
+    DPImm,
+    DPReg,
+    LS,
+    B,
+    Err
+} category;
+
+//
+// Utility Functions
+//
+
 void initializeState(void)
 {
     state.pstate.Z = true;
@@ -40,12 +55,14 @@ void charToBinary(char c, char *memData)
     memData[8] = '\0';
 }
 
-int instructionToInt(unsigned char c0, unsigned char c1, unsigned char c2, unsigned char c3) {
+int instructionToInt(long addr)
+{
     int result = 0;
-    result |= c0;
-    result |= (c1 << 8);
-    result |= (c2 << 16);
-    result |= (c3 << 24);
+    result |= mem[addr];
+    result |= (mem[addr + 1] << 8);
+    result |= (mem[addr + 2] << 16);
+    result |= (mem[addr + 3] << 24);
+    // This is also transofrmed from little endian
     return result;
 }
 
@@ -103,7 +120,7 @@ void writeOutput(const char *filename)
     fprintf(file, "\nNon-zero memory:\n");
     for (int addr = 0; addr < MEMORY_SIZE; addr += 4)
     {
-        int binInstr = instructionToInt(mem[addr], mem[addr + 1], mem[addr + 2], mem[addr + 3]);
+        int binInstr = instructionToInt(addr);
         if (binInstr != 0)
         {
             fprintf(file, "0x%08x: %08x\n", addr, binInstr);
@@ -112,14 +129,107 @@ void writeOutput(const char *filename)
     fclose(file);
 }
 
+//
+// Binary Manipulation Helpers
+//
+int checkOp0(long instr)
+{
+    return instr >> 25 & 0x15;
+}
+
+void getBits(uint32_t x, int nbits, char *buf)
+{
+    uint32_t mask = 1 << (nbits - 1);
+    for (int i = 0; i < nbits; i++)
+    {
+        int bit = (x & mask) != 0;
+        buf[nbits - i - 1] = '0' + bit;
+        mask >>= 1;
+    }
+}
+
+//
+// Pipeline Stages
+//
+long fetch(void)
+{
+    // Fetch instruction from memory
+    long instruction = instructionToInt(state.PC);
+
+    // Compute the address of the next instruction
+    state.PC = state.PC + 4;
+    // We update PC for branches after execution
+
+    return instruction;
+}
+
+category decode(long instr)
+{
+    char op0[4];
+    getBits(checkOp0(instr), 4, op0);
+    if (op0[1] == 0)
+    {
+        if (op0[0] == 1)
+        {
+            return (op0[2] == 0) ? DPImm : B;
+        }
+    }
+    else
+    {
+        if (op0[3] == 1)
+        {
+            if (op0[2] == 0)
+                return DPReg;
+        }
+        else
+            return LS;
+    }
+    return Err;
+}
+
+//
+// Main Program
+//
+
 int main(int argc, char **argv)
 {
     char *inputFile = argv[1];
     char *outputFile = (argc > 2) ? argv[2] : "stdout";
 
+    // Set up initial state
     initializeState();
+    // Read from binary file
+    // Store instructions into memory
     loadBinaryFile(inputFile);
-    writeOutput(outputFile);
 
+    // 0x8a000000 in hex = 2315255808 in dec
+    while (state.PC != 2315255808)
+    {
+        long instr = fetch();
+        category cat = decode(instr);
+
+        switch (cat)
+        {
+        case DPImm:
+            // Code
+            break;
+        case DPReg:
+            // Code
+            break;
+        case LS:
+            // Code
+            break;
+        case B:
+            // Code
+            break;
+        default:
+            // Incorrect opcode
+            perror("Incorrect opcode0, instruction not supported");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    // Write the final state after executing all instructions
+    writeOutput(outputFile);
     return EXIT_SUCCESS;
 }

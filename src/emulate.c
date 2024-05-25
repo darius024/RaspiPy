@@ -224,23 +224,23 @@ category decode(int instr)
 struct dpimm
 {
     bool sf;
-    unsigned short int opc;
-    unsigned short int opi;
+    unsigned short opc;
+    unsigned short opi;
     union
     {
         struct
         {
             bool sh;
-            unsigned short int imm12;
-            unsigned short int rn;
+            unsigned short imm12;
+            unsigned short rn;
         } arithmetic;
         struct
         {
-            unsigned short int hw;
-            unsigned short int imm16;
+            unsigned short hw;
+            unsigned short imm16;
         } widemove;
     };
-    unsigned short int rd;
+    unsigned short rd;
 } dpimm;
 
 void decodeDPImm(int instr)
@@ -292,13 +292,13 @@ void updateFlagsAdd(int64_t a, int64_t b)
     int64_t res = a + b;
 
     // Sign Flag (N)
-    state.pstate.N = (dpimm.sf == 0)
+    state.pstate.N = (!dpimm.sf)
                          ? ((int32_t)(res & 0xFFFFFFFF) < 0)
                          : (res < 0);
     // Zero Flag (Z)
     state.pstate.Z = (res == 0);
     // Carry Flag (C)
-    state.pstate.C = (dpimm.sf == 0)
+    state.pstate.C = (!dpimm.sf)
                          ? (res > 0xFFFFFFFF)
                          : (res < a);
     // Overflow Flag (V)
@@ -311,7 +311,7 @@ void updateFlagsSub(int64_t a, int64_t b)
     int64_t res = a - b;
 
     // Sign Flag (N)
-    state.pstate.N = (dpimm.sf == 0)
+    state.pstate.N = (!dpimm.sf)
                          ? ((int32_t)(res & 0xFFFFFFFF) < 0)
                          : (res < 0);
     // Zero Flag (Z)
@@ -409,7 +409,6 @@ void dataProcessingImmInstruction(int instr)
     decodeDPImm(instr);
     executeDPImm();
 }
-
 
 // 1.5 Data Processing Instruction (Register)
 
@@ -637,20 +636,191 @@ int64_t shift(int64_t value, unsigned short amount, unsigned short mode, bool no
     }
 }
 
+// 1.7 Single Data Transfer Instructions
 
+struct sdt
+{
+    bool mode;
+    bool sf;
+    union
+    {
+        struct
+        {
+            bool u;
+            bool l;
+            bool offmode;
+            union
+            {
+                unsigned short xm;
+                struct
+                {
+                    unsigned short simm9;
+                    bool i;
+                };
+                unsigned short imm12;
+            } addrm;
+            unsigned short xn;
+        };
+        int simm19;
+    };
+    unsigned short rt;
+} sdt;
 
+void decodeSDT(int instr)
+{
+    getBitsShortInt(instr, 5, &sdt.rt);
+    instr >>= 5;
+    int uncommon;
+    getBitsInt(instr, 20, &uncommon);
+    instr >>= 25;
+    sdt.sf = instr % 2;
+    sdt.mode = (instr >> 1) % 2;
+
+    // Check for 32-bit or 64-bit mode for Rd
+    int64_t mask = 0xFFFFFFFF;
+    if (sdt.sf == 0)
+        state.R[sdt.rt] &= mask;
+
+    // Type of addressing mdode
+    // Support: single data transfer - 1, load literal - 0
+    // Single Data Transfer
+    if (sdt.mode == 0)
+    {
+        getBitsShortInt(uncommon, 5, &sdt.xn);
+        uncommon >>= 5;
+        unsigned short offset;
+        getBitsShortInt(uncommon, 12, &offset);
+        uncommon >>= 12;
+        sdt.l = uncommon % 2;
+        uncommon >>= 2;
+        sdt.u = uncommon % 2;
+
+        sdt.offmode = (offset >> 11) % 2;
+
+        // Unsigned Immediate Offset
+        if (sdt.u == 1)
+        {
+            sdt.addrm.imm12 = offset;
+        }
+        // Pre/Post - Index
+        if (!sdt.offmode)
+        {
+            sdt.addrm.i = (offset >> 1) % 2;
+            sdt.addrm.simm9 = offset / 4;
+        }
+        // Register Offset
+        else
+        {
+            getBitsShortInt(offset >> 6, 5, &sdt.addrm.xm);
+        }
+    }
+    // Load Literal
+    else
+        getBitsInt(uncommon, 19, &sdt.simm19);
+}
+
+void loadFromMemory(int addr, int64_t *reg, bool mode)
+{
+    int result = 0;
+    int bytes = mode * 4 + 4;
+    // Mode: 0 -> 32-bits,  1 -> 64-bits
+    for (int i = 0; i < bytes; i++)
+    {
+        result |= mem[addr + i] << (8 * i);
+    }
+    // This is also transofrmed from little endian
+    *reg = result;
+}
+
+void storeToMemory(int addr, int64_t *reg, bool mode)
+{
+    int bytes = mode * 4 + 4;
+    // Mode: 0 -> 32-bits,  1 -> 64-bits
+    char *ptr = (char *)reg;
+    for (int i = bytes - 1; i >= 0; i--)
+    {
+        mem[addr + i] = *ptr++;
+    }
+    // This is also transofrmed from little endian
+}
+
+void executeSDT(void)
+{
+    // Although xn is 64 bits, addresses can only be 21 bits, so trim to int.
+    int targetAddress;
+
+    // Single Data Transfer
+    if (sdt.mode == 0)
+    {
+        targetAddress = (sdt.xn == 31)
+                            ? state.SP
+                            : state.R[sdt.xn];
+
+        // Unsigned Immediate Offset
+        if (sdt.u == 1)
+        {
+            short int uoffset = (!sdt.sf)
+                                    ? sdt.addrm.imm12 * 8
+                                    : sdt.addrm.imm12 * 4;
+            targetAddress += uoffset;
+        }
+        // Pre/Post - Index
+        if (!sdt.offmode)
+        {
+            targetAddress += (sdt.addrm.i) ? sdt.addrm.simm9 : 0;
+            if (sdt.xn == 31)
+            {
+                state.SP += sdt.addrm.simm9;
+            }
+            else
+            {
+                state.R[sdt.xn] += sdt.addrm.simm9;
+            }
+        }
+        // Register Offset
+        else
+        {
+            targetAddress += state.R[sdt.addrm.xm];
+        }
+    }
+    // Load Literal
+    else
+    {
+        targetAddress = state.PC + sdt.simm19 * 4;
+    }
+
+    // Simulate the Data Transfer
+    if (sdt.l == 1)
+    {
+        // Load
+        loadFromMemory(targetAddress, &state.R[sdt.rt], sdt.sf);
+    }
+    else
+    {
+        // Store
+        storeToMemory(targetAddress, &state.R[sdt.rt], sdt.sf);
+    }
+}
+
+void singleDataTransferInstruction(int instr)
+{
+    decodeSDT(instr);
+    executeSDT();
+}
 
 // 1.8 Branch Instructions
 
 struct br
 {
-    unsigned short int type;
-    union {
+    unsigned short type;
+    union
+    {
         int simm26;
-        unsigned short int xn;
-        struct {
+        unsigned short xn;
+        struct
+        {
             int simm19;
-            unsigned short int cond;
+            unsigned short cond;
         };
     };
 } br;
@@ -684,62 +854,64 @@ void decodeB(int instr)
     }
 }
 
-void executeB(void) {
-    switch(br.type) {
-        case 0: // Unconditional
-            state.PC += br.simm26 * 4;
-            break;
-        case 1: // Conditional
+void executeB(void)
+{
+    switch (br.type)
+    {
+    case 0: // Unconditional
+        state.PC += br.simm26 * 4;
+        break;
+    case 1: // Conditional
+    {
+        bool toBranch = false;
+        switch (br.cond)
         {
-            bool toBranch = false;
-            switch(br.cond)
-            {
-                case 0: // EQ - 0000
-                    toBranch = state.pstate.Z;
-                    break;
-                case 1: // NE - 0001
-                    toBranch = !state.pstate.Z;
-                    break;
-                case 10: // GE - 1010
-                    toBranch = (state.pstate.N == state.pstate.V);
-                    break;
-                case 11: // LT - 1011
-                    toBranch = (state.pstate.N != state.pstate.V);
-                    break;
-                case 12: // GT - 1100
-                    toBranch = (!state.pstate.Z && state.pstate.N == state.pstate.V);
-                    break;
-                case 13: // LE - 1101
-                    toBranch = (state.pstate.Z || state.pstate.N != state.pstate.V);
-                    break;
-                case 14: // AL - 1110
-                    toBranch = 1;
-                    break;
-            }
-            if (toBranch) {
-                state.PC += br.simm19 * 4;
-            }
+        case 0: // EQ - 0000
+            toBranch = state.pstate.Z;
+            break;
+        case 1: // NE - 0001
+            toBranch = !state.pstate.Z;
+            break;
+        case 10: // GE - 1010
+            toBranch = (state.pstate.N == state.pstate.V);
+            break;
+        case 11: // LT - 1011
+            toBranch = (state.pstate.N != state.pstate.V);
+            break;
+        case 12: // GT - 1100
+            toBranch = (!state.pstate.Z && state.pstate.N == state.pstate.V);
+            break;
+        case 13: // LE - 1101
+            toBranch = (state.pstate.Z || state.pstate.N != state.pstate.V);
+            break;
+        case 14: // AL - 1110
+            toBranch = 1;
             break;
         }
-        case 3: // Register
-            state.PC = (br.xn == 31)
-                    ? state.ZR
-                    : state.R[br.xn];
-            break;
-        default:
+        if (toBranch)
         {
-            perror("Not supported type of data processing opeartion (opi).\n");
-            exit(EXIT_FAILURE);
+            state.PC += br.simm19 * 4;
         }
+        break;
+    }
+    case 3: // Register
+        state.PC = (br.xn == 31)
+                       ? state.ZR
+                       : state.R[br.xn];
+        break;
+    default:
+    {
+        perror("Not supported type of data processing opeartion (opi).\n");
+        exit(EXIT_FAILURE);
+    }
     }
 }
 
-void branchInstruction(int instr) {
+void branchInstruction(int instr)
+{
     decodeB(instr);
     executeB();
 }
-
-
 
 //
 // Main Program
@@ -772,7 +944,7 @@ int main(int argc, char **argv)
             dataProcessingRInstruction(instr);
             break;
         case LS:
-            // Code
+            singleDataTransferInstruction(instr);
             break;
         case B:
             branchInstruction(instr);

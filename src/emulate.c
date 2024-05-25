@@ -236,7 +236,7 @@ struct dpimm
             unsigned short int hw;
             unsigned short int imm16;
         } widemove;
-    } operand;
+    };
     unsigned short int rd;
 } dpimm;
 
@@ -263,19 +263,19 @@ void decodeDPImm(int instr)
     switch (dpimm.opi)
     {
     case 2: // opi = 010
-        getBitsShortInt(operand, 5, &dpimm.operand.arithmetic.rn);
+        getBitsShortInt(operand, 5, &dpimm.arithmetic.rn);
         operand >>= 5;
-        getBitsShortInt(operand, 12, &dpimm.operand.arithmetic.imm12);
+        getBitsShortInt(operand, 12, &dpimm.arithmetic.imm12);
         operand >>= 12;
-        dpimm.operand.arithmetic.sh = operand % 2;
+        dpimm.arithmetic.sh = operand % 2;
         // Check for 32-bit or 64-bit mode for Rn
         if (dpimm.sf == 0)
-            state.R[dpimm.operand.arithmetic.rn] &= mask;
+            state.R[dpimm.arithmetic.rn] &= mask;
         break;
     case 5: // opi = 101
-        getBitsShortInt(operand, 16, &dpimm.operand.widemove.imm16);
+        getBitsShortInt(operand, 16, &dpimm.widemove.imm16);
         operand >>= 16;
-        getBitsShortInt(operand, 2, &dpimm.operand.widemove.hw);
+        getBitsShortInt(operand, 2, &dpimm.widemove.hw);
         break;
     default:
         perror("Not supported type of data processing operation (opi).\n");
@@ -325,11 +325,11 @@ void executeDPImm(void)
     {
     case 2: // opi = 010
     {
-        uint32_t imm12 = dpimm.operand.arithmetic.imm12 << (12 * dpimm.operand.arithmetic.sh);
+        uint32_t imm12 = dpimm.arithmetic.imm12 << (12 * dpimm.arithmetic.sh);
 
-        int64_t Rn = (dpimm.operand.arithmetic.rn == 31)
+        int64_t Rn = (dpimm.arithmetic.rn == 31)
                          ? state.SP
-                         : state.R[dpimm.operand.arithmetic.rn];
+                         : state.R[dpimm.arithmetic.rn];
         int64_t *Rd = (dpimm.rd == 31)
                           ? (dpimm.opc % 2 == 0) ? &state.SP : &state.ZR
                           : &state.R[dpimm.rd];
@@ -360,7 +360,7 @@ void executeDPImm(void)
     }
     case 5: // opi = 101
     {
-        uint64_t imm16 = dpimm.operand.widemove.imm16 << (dpimm.operand.widemove.hw * 16);
+        uint64_t imm16 = dpimm.widemove.imm16 << (dpimm.widemove.hw * 16);
         if (dpimm.rd == 31)
             break;
         int64_t *Rd = &state.R[dpimm.rd];
@@ -381,8 +381,8 @@ void executeDPImm(void)
         }
         case 3: // Move wide with keep
         {
-            int64_t masku = (1 << (16 + (dpimm.operand.widemove.hw * 16))) - 1;
-            int64_t maskl = (1 << (dpimm.operand.widemove.hw * 16)) - 1;
+            int64_t masku = (1 << (16 + (dpimm.widemove.hw * 16))) - 1;
+            int64_t maskl = (1 << (dpimm.widemove.hw * 16)) - 1;
             int64_t mask = masku & maskl;
             *Rd = (*Rd & ~mask) | imm16;
             break;
@@ -401,11 +401,114 @@ void executeDPImm(void)
     }
 }
 
-void dataProcessingImmediate(int64_t instr)
+void dataProcessingImmInstruction(int instr)
 {
     decodeDPImm(instr);
     executeDPImm();
 }
+
+
+
+// Branch Instructions
+
+struct br
+{
+    unsigned short int type;
+    union {
+        int simm26;
+        unsigned short int xn;
+        struct {
+            int simm19;
+            unsigned short int cond;
+        };
+    };
+} br;
+
+void decodeB(int instr)
+{
+    int branch;
+    getBitsInt(instr, 26, &branch);
+    instr >>= 30;
+    getBitsShortInt(instr, 2, &br.type);
+
+    // Type of branch
+    // Supported: unconditional - 00, register - 11, conditional - 01
+    switch (br.type)
+    {
+    case 0: // opi = 010
+        getBitsInt(branch, 26, &br.simm26);
+        break;
+    case 1: // opi = 101
+        branch >>= 5;
+        getBitsShortInt(branch, 5, &br.xn);
+        break;
+    case 3: // opi = 101
+        getBitsShortInt(branch, 4, &br.cond);
+        branch >>= 5;
+        getBitsInt(branch, 19, &br.simm19);
+        break;
+    default:
+        perror("Not supported type of branching.\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void executeB(void) {
+    switch(br.type) {
+        case 0: // Unconditional
+            state.PC += br.simm26 * 4;
+            break;
+        case 1: // Conditional
+        {
+            bool toBranch = false;
+            switch(br.cond)
+            {
+                case 0: // EQ - 0000
+                    toBranch = state.pstate.Z;
+                    break;
+                case 1: // NE - 0001
+                    toBranch = !state.pstate.Z;
+                    break;
+                case 10: // GE - 1010
+                    toBranch = (state.pstate.N == state.pstate.V);
+                    break;
+                case 11: // LT - 1011
+                    toBranch = (state.pstate.N != state.pstate.V);
+                    break;
+                case 12: // GT - 1100
+                    toBranch = (!state.pstate.Z && state.pstate.N == state.pstate.V);
+                    break;
+                case 13: // LE - 1101
+                    toBranch = (state.pstate.Z || state.pstate.N != state.pstate.V);
+                    break;
+                case 14: // AL - 1110
+                    toBranch = 1;
+                    break;
+            }
+            if (toBranch) {
+                state.PC += br.simm19 * 4;
+            }
+            break;
+        }
+        case 3: // Register
+            state.PC = (br.xn == 31)
+                    ? state.ZR
+                    : state.R[br.xn];
+            break;
+        default:
+        {
+            perror("Not supported type of data processing opeartion (opi).\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
+void branchInstruction(int instr) {
+    decodeB(instr);
+    executeB();
+}
+
+
 
 //
 // Main Program
@@ -432,7 +535,7 @@ int main(int argc, char **argv)
         switch (cat)
         {
         case DPImm:
-            dataProcessingImmediate(instr);
+            dataProcessingImmInstruction(instr);
             break;
         case DPReg:
             // Code
@@ -441,7 +544,7 @@ int main(int argc, char **argv)
             // Code
             break;
         case B:
-            // Code
+            branchInstruction(instr);
             break;
         default:
             // Incorrect opcode

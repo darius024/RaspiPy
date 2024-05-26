@@ -49,15 +49,6 @@ void initializeState(void)
     state.pstate.Z = true;
 }
 
-void charToBinary(char c, char *memData)
-{
-    for (int i = 7; i >= 0; i--)
-    {
-        memData[7 - i] = (c & (1 << i)) ? '1' : '0';
-    }
-    memData[8] = '\0';
-}
-
 int instructionToInt(int addr)
 {
     int result = 0;
@@ -100,7 +91,7 @@ void loadBinaryFile(const char *filename)
 void writeOutput(const char *filename)
 {
     FILE *file;
-    file = (!strcmp(filename, "stdout")) ? stdout : fopen(filename, "a");
+    file = (!strcmp(filename, "stdout")) ? stdout : fopen(filename, "w");
     if (!file)
     {
         perror("Could not open output file.\n");
@@ -181,6 +172,16 @@ void getBitsShortInt(uint32_t x, int nbits, unsigned short int *res)
     }
 }
 
+void signExtendTo32Bits(int *value, int nobits)
+{
+    if (*value & (1 << (nobits - 1)))
+    {
+        // The number is negative
+        int mask = 0xFFFFFFFFLL ^ ((1 << nobits) - 1);
+        *value |= mask;
+    }
+}
+
 //
 // Pipeline Stages
 //
@@ -199,6 +200,7 @@ category decode(int instr)
 {
     char op0[5];
     getBitsChar(checkOp0(instr), 4, op0);
+    printf("PC: %lx  Instruction decoded: %x, opcode0 : %s\n", state.PC, instr, op0);
     if (op0[1] == '0')
     {
         if (op0[0] == '1')
@@ -258,7 +260,7 @@ void decodeDPImm(int instr)
 
     // Check for 32-bit or 64-bit mode for Rd
     int64_t mask = 0xFFFFFFFF;
-    if (dpimm.sf == 0)
+    if (!dpimm.sf)
         state.R[dpimm.rd] &= mask;
 
     // Type of data processing operation
@@ -271,9 +273,6 @@ void decodeDPImm(int instr)
         getBitsShortInt(operand, 12, &dpimm.arithmetic.imm12);
         operand >>= 12;
         dpimm.arithmetic.sh = operand % 2;
-        // Check for 32-bit or 64-bit mode for Rn
-        if (dpimm.sf == 0)
-            state.R[dpimm.arithmetic.rn] &= mask;
         break;
     case 5: // opi = 101
         getBitsShortInt(operand, 16, &dpimm.widemove.imm16);
@@ -286,56 +285,55 @@ void decodeDPImm(int instr)
     }
 }
 
-void updateFlagsAdd(int64_t a, int64_t b)
+void updateFlagsAdd(int64_t a, int64_t b, bool sf)
 {
-    // We know b is unsigned, so positive.
     int64_t res = a + b;
 
     // Sign Flag (N)
-    state.pstate.N = (!dpimm.sf)
-                         ? ((int32_t)(res & 0xFFFFFFFF) < 0)
-                         : (res < 0);
+    state.pstate.N = sf ? (res < 0) : ((int32_t)res < 0);
     // Zero Flag (Z)
     state.pstate.Z = (res == 0);
     // Carry Flag (C)
-    state.pstate.C = (!dpimm.sf)
-                         ? (res > 0xFFFFFFFF)
-                         : (res < a);
+    state.pstate.C = sf ? ((uint64_t)res < (uint64_t)a)
+                        : ((uint32_t)res < (uint32_t)a);
     // Overflow Flag (V)
-    state.pstate.V = (a > 0 && state.pstate.N);
+    state.pstate.V = sf ? (((a > 0) == (b > 0)) && ((res > 0) != (a > 0)))
+                        : ((((int32_t)a > 0) == ((int32_t)b > 0)) && (((int32_t)res > 0) != ((int32_t)a > 0)));
 }
 
-void updateFlagsSub(int64_t a, int64_t b)
+void updateFlagsSub(int64_t a, int64_t b, bool sf)
 {
-    // We know b is unsigned, so positive.
     int64_t res = a - b;
 
     // Sign Flag (N)
-    state.pstate.N = (!dpimm.sf)
-                         ? ((int32_t)(res & 0xFFFFFFFF) < 0)
-                         : (res < 0);
+    state.pstate.N = sf ? (res < 0) : ((int32_t)res < 0);
     // Zero Flag (Z)
     state.pstate.Z = (res == 0);
     // Carry Flag (C)
-    state.pstate.C = (a >= b);
+    state.pstate.C = sf ? ((uint64_t)a >= (uint64_t)b)
+                        : ((uint32_t)a >= (uint32_t)b);
     // Overflow Flag (V)
-    state.pstate.V = (a < 0 && !state.pstate.N);
+    state.pstate.V = sf ? (((a > 0) != (b > 0)) && ((res > 0) == (b > 0)))
+                        : ((((int32_t)a > 0) != ((int32_t)b > 0)) && (((int32_t)res > 0) == ((int32_t)b > 0)));
 }
 
 void executeDPImm(void)
 {
     switch (dpimm.opi)
     {
-    case 2: // opi = 010
+    case 2: // Arithmetic
     {
-        uint32_t imm12 = dpimm.arithmetic.imm12 << (12 * dpimm.arithmetic.sh);
+        int64_t imm12 = ((int64_t)dpimm.arithmetic.imm12) << (12 * dpimm.arithmetic.sh);
 
         int64_t Rn = (dpimm.arithmetic.rn == 31)
                          ? state.SP
                          : state.R[dpimm.arithmetic.rn];
+        // We don't update state.ZR, so we shouldn't point to it.
         int64_t *Rd = (dpimm.rd == 31)
-                          ? (dpimm.opc % 2 == 0) ? &state.SP : &state.ZR
+                          ? &state.SP
                           : &state.R[dpimm.rd];
+        if (!dpimm.sf)
+            Rn &= 0xFFFFFFFFLL;
 
         switch (dpimm.opc)
         {
@@ -345,7 +343,7 @@ void executeDPImm(void)
         case 1: // Add and set flags
             if (dpimm.rd != 31)
                 *Rd = Rn + imm12;
-            updateFlagsAdd(Rn, imm12);
+            updateFlagsAdd(Rn, imm12, dpimm.sf);
             break;
         case 2: // Subtract
             *Rd = Rn - imm12;
@@ -353,17 +351,19 @@ void executeDPImm(void)
         case 3: // Subtract and set flags
             if (dpimm.rd != 31)
                 *Rd = Rn - imm12;
-            updateFlagsSub(Rn, imm12);
+            updateFlagsSub(Rn, imm12, dpimm.sf);
             break;
         default:
             // Can't reach here
             break;
         }
+        if (!dpimm.sf)
+            *Rd &= 0xFFFFFFFFLL;
         break;
     }
-    case 5: // opi = 101
+    case 5: // Wide Move
     {
-        uint64_t imm16 = dpimm.widemove.imm16 << (dpimm.widemove.hw * 16);
+        uint64_t imm16 = ((uint64_t)dpimm.widemove.imm16) << (dpimm.widemove.hw * 16);
         if (dpimm.rd == 31)
             break;
         int64_t *Rd = &state.R[dpimm.rd];
@@ -373,8 +373,8 @@ void executeDPImm(void)
         case 0: // Move wide with NOT
         {
             *Rd = ~imm16;
-            if (dpimm.sf == 0)
-                *Rd &= 0xFFFFFFFF;
+            if (!dpimm.sf)
+                *Rd &= 0xFFFFFFFFLL;
             break;
         }
         case 2: // Move wide with zero
@@ -384,10 +384,10 @@ void executeDPImm(void)
         }
         case 3: // Move wide with keep
         {
-            int64_t masku = (1 << (16 + (dpimm.widemove.hw * 16))) - 1;
-            int64_t maskl = (1 << (dpimm.widemove.hw * 16)) - 1;
-            int64_t mask = masku & maskl;
+            int64_t mask = 0XFFFFLL << (dpimm.widemove.hw * 16);
             *Rd = (*Rd & ~mask) | imm16;
+            if (!dpimm.sf)
+                *Rd &= 0xFFFFFFFFLL;
             break;
         }
         default:
@@ -444,16 +444,12 @@ void decodeDPR(int instr)
 
     // Check for 32-bit or 64-bit mode for Rd
     int64_t mask = 0xFFFFFFFF;
-    if (dpr.sf == 0)
-    {
+    if (!dpr.sf)
         state.R[dpr.rd] &= mask;
-        state.R[dpr.rn] &= mask;
-        state.R[dpr.rm] &= mask;
-    }
 
     // Type of data processing operation
     // Support (M + opr): arithmetic - 01xx0, bit-logic - 00xxx, multiply - 11000
-    if (dpr.m == 0)
+    if (!dpr.m)
     {
         unsigned short shiftMode = (dpr.opr >> 1) % 4;
 
@@ -477,13 +473,13 @@ void decodeDPR(int instr)
     }
 }
 
-void updateFlagsAnd(int64_t a, int64_t b)
+void updateFlagsAnd(int64_t a, int64_t b, bool notB)
 {
-    int64_t res = a & b;
+    int64_t res = (notB) ? a & ~b : a & b;
 
     // Sign Flag (N)
     state.pstate.N = (!dpr.sf)
-                         ? ((int32_t)(res & 0xFFFFFFFF) < 0)
+                         ? ((int32_t)(res & 0xFFFFFFFFLL) < 0)
                          : (res < 0);
     // Zero Flag (Z)
     state.pstate.Z = (res == 0);
@@ -495,15 +491,20 @@ void updateFlagsAnd(int64_t a, int64_t b)
 
 void executeDPR(void)
 {
+    int64_t *Rd = &state.R[dpr.rd];
+    int64_t Rm = state.R[dpr.rm];
+    int64_t Rn = state.R[dpr.rn];
     if (dpr.m == 0)
     {
         unsigned short shiftMode = (dpr.opr >> 1) % 4;
-        int64_t *Rd = (dpr.rd == 31)
-                          ? (dpr.opc % 2 == 0) ? &state.SP : &state.ZR
-                          : &state.R[dpr.rd];
-        ;
+
+        if (!dpr.sf)
+        {
+            Rm &= 0xFFFFFFFFLL;
+            Rn &= 0xFFFFFFFFLL;
+        }
         // Compute offset
-        int64_t op2 = shift(state.R[dpr.rm], dpr.operand, shiftMode, dpr.sf);
+        int64_t op2 = shift(Rm, dpr.operand, shiftMode, dpr.sf);
 
         // Arithmetic
         if ((dpr.opr >> 3) % 2 == 1)
@@ -512,25 +513,27 @@ void executeDPR(void)
             switch (dpr.opc)
             {
             case 0: // Add
-                *Rd = dpr.rn + op2;
+                *Rd = Rn + op2;
                 break;
             case 1: // Add and set flags
                 if (dpr.rd != 31)
-                    *Rd = dpr.rn + op2;
-                updateFlagsAdd(dpr.rn, op2);
+                    *Rd = Rn + op2;
+                updateFlagsAdd(Rn, op2, dpr.sf);
                 break;
             case 2: // Subtract
-                *Rd = dpr.rn - op2;
+                *Rd = Rn - op2;
                 break;
             case 3: // Subtract and set flags
                 if (dpr.rd != 31)
-                    *Rd = dpr.rn - op2;
-                updateFlagsSub(dpr.rn, op2);
+                    *Rd = Rn - op2;
+                updateFlagsSub(Rn, op2, dpr.sf);
                 break;
             default:
                 // Can't reach here
                 break;
             }
+            if (!dpr.sf)
+                *Rd &= 0xFFFFFFFFLL;
         }
         // Logical
         else
@@ -538,30 +541,29 @@ void executeDPR(void)
             bool n = dpr.opr % 2;
 
             // Simulate execution from opc
-            Rd = (dpr.rd == 31)
-                     ? (dpr.opc % 2 == 0) ? &state.SP : &state.ZR
-                     : &state.R[dpr.rd];
 
             switch (dpr.opc)
             {
             case 0: // Bitwise AND and Bit clear
-                *Rd = (n) ? dpr.rn & op2 : dpr.rn & ~op2;
+                *Rd = (!n) ? Rn & op2 : Rn & ~op2;
                 break;
             case 1: // Bitwise inclusive OR and NOR
-                *Rd = (n) ? dpr.rn | op2 : dpr.rn | ~op2;
+                *Rd = (!n) ? Rn | op2 : Rn | ~op2;
                 break;
             case 2: // Bitwise exclusive OR and NOR
-                *Rd = (n) ? dpr.rn ^ op2 : dpr.rn ^ ~op2;
+                *Rd = (!n) ? Rn ^ op2 : Rn ^ ~op2;
                 break;
             case 3: // Bitwise AND and Bit clear, setting flags
                 if (dpr.rd != 31)
-                    *Rd = (n) ? dpr.rn & op2 : dpr.rn & ~op2;
-                updateFlagsAnd(dpr.rn, op2);
+                    *Rd = (!n) ? Rn & op2 : Rn & ~op2;
+                updateFlagsAnd(Rn, op2, n);
                 break;
             default:
                 // Can't reach here
                 break;
             }
+            if (!dpr.sf)
+                *Rd &= 0xFFFFFFFFLL;
         }
     }
     else
@@ -573,9 +575,11 @@ void executeDPR(void)
         if (dpr.rd == 31)
             return;
 
-        state.R[dpr.rd] = (!x)
-                              ? state.R[ra] + (state.R[dpr.rn] * state.R[dpr.rm])  // Multiply-Add
-                              : state.R[ra] - (state.R[dpr.rn] * state.R[dpr.rm]); // Multiply-Sub
+        *Rd = (!x)
+                  ? state.R[ra] + (Rn * Rm)  // Multiply-Add
+                  : state.R[ra] - (Rn * Rm); // Multiply-Sub
+        if (!dpr.sf)
+            *Rd &= 0xFFFFFFFFLL;
     }
 }
 
@@ -589,12 +593,7 @@ void dataProcessingRInstruction(int instr)
 
 int64_t shift(int64_t value, unsigned short amount, unsigned short mode, bool nobits)
 {
-
-    if (amount < 0 || amount >= (nobits ? 32 : 64))
-    {
-        perror("Shift amount out of range.");
-        exit(EXIT_FAILURE);
-    }
+    amount %= (!nobits) ? 32 : 64;
 
     int64_t mask32 = 0xFFFFFFFF;
     int32_t value32 = value & mask32;
@@ -654,7 +653,7 @@ struct sdt
                 unsigned short xm;
                 struct
                 {
-                    unsigned short simm9;
+                    int simm9;
                     bool i;
                 };
                 unsigned short imm12;
@@ -676,15 +675,10 @@ void decodeSDT(int instr)
     sdt.sf = instr % 2;
     sdt.mode = (instr >> 1) % 2;
 
-    // Check for 32-bit or 64-bit mode for Rd
-    int64_t mask = 0xFFFFFFFF;
-    if (sdt.sf == 0)
-        state.R[sdt.rt] &= mask;
-
-    // Type of addressing mdode
+    // Type of addressing mode
     // Support: single data transfer - 1, load literal - 0
     // Single Data Transfer
-    if (sdt.mode == 0)
+    if (sdt.mode)
     {
         getBitsShortInt(uncommon, 5, &sdt.xn);
         uncommon >>= 5;
@@ -699,48 +693,46 @@ void decodeSDT(int instr)
 
         // Unsigned Immediate Offset
         if (sdt.u == 1)
-        {
             sdt.addrm.imm12 = offset;
-        }
-        // Pre/Post - Index
-        if (!sdt.offmode)
-        {
-            sdt.addrm.i = (offset >> 1) % 2;
-            sdt.addrm.simm9 = offset / 4;
-        }
-        // Register Offset
         else
         {
-            getBitsShortInt(offset >> 6, 5, &sdt.addrm.xm);
+            // Pre/Post - Index
+            if (!sdt.offmode)
+            {
+                sdt.addrm.i = (offset >> 1) % 2;
+                sdt.addrm.simm9 = offset / 4;
+                signExtendTo32Bits(&sdt.addrm.simm9, 9);
+            }
+            // Register Offset
+            else
+                getBitsShortInt(offset >> 6, 5, &sdt.addrm.xm);
         }
     }
     // Load Literal
     else
+    {
         getBitsInt(uncommon, 19, &sdt.simm19);
+        signExtendTo32Bits(&sdt.simm19, 19);
+    }
 }
 
 void loadFromMemory(int addr, int64_t *reg, bool mode)
 {
-    int result = 0;
+    int64_t result = 0;
     int bytes = mode * 4 + 4;
     // Mode: 0 -> 32-bits,  1 -> 64-bits
     for (int i = 0; i < bytes; i++)
-    {
-        result |= mem[addr + i] << (8 * i);
-    }
+        result |= ((int64_t)mem[addr + i]) << (8 * i);
     // This is also transofrmed from little endian
     *reg = result;
 }
 
-void storeToMemory(int addr, int64_t *reg, bool mode)
+void storeToMemory(int addr, int64_t reg, bool mode)
 {
     int bytes = mode * 4 + 4;
     // Mode: 0 -> 32-bits,  1 -> 64-bits
-    char *ptr = (char *)reg;
-    for (int i = bytes - 1; i >= 0; i--)
-    {
-        mem[addr + i] = *ptr++;
-    }
+    for (int i = 0; i < bytes; i++)
+        mem[addr + i] = (reg >> (i * 8)) & 0xFF;
     // This is also transofrmed from little endian
 }
 
@@ -750,7 +742,7 @@ void executeSDT(void)
     int targetAddress;
 
     // Single Data Transfer
-    if (sdt.mode == 0)
+    if (sdt.mode)
     {
         targetAddress = (sdt.xn == 31)
                             ? state.SP
@@ -759,46 +751,46 @@ void executeSDT(void)
         // Unsigned Immediate Offset
         if (sdt.u == 1)
         {
-            short int uoffset = (!sdt.sf)
-                                    ? sdt.addrm.imm12 * 8
-                                    : sdt.addrm.imm12 * 4;
+            unsigned short uoffset = (!sdt.sf)
+                                         ? sdt.addrm.imm12 * 4
+                                         : sdt.addrm.imm12 * 8;
             targetAddress += uoffset;
         }
-        // Pre/Post - Index
-        if (!sdt.offmode)
-        {
-            targetAddress += (sdt.addrm.i) ? sdt.addrm.simm9 : 0;
-            if (sdt.xn == 31)
-            {
-                state.SP += sdt.addrm.simm9;
-            }
-            else
-            {
-                state.R[sdt.xn] += sdt.addrm.simm9;
-            }
-        }
-        // Register Offset
         else
         {
-            targetAddress += state.R[sdt.addrm.xm];
+            // Pre/Post - Index
+            if (!sdt.offmode)
+            {
+                targetAddress += (sdt.addrm.i) ? sdt.addrm.simm9 : 0;
+                if (sdt.xn == 31)
+                    state.SP += (int64_t)sdt.addrm.simm9;
+                else
+                    state.R[sdt.xn] += (int64_t)sdt.addrm.simm9;
+            }
+            // Register Offset
+            else
+                targetAddress += state.R[sdt.addrm.xm];
+        }
+
+        // Simulate the Data Transfer
+        if (sdt.l)
+        {
+            // Load
+            loadFromMemory(targetAddress, &state.R[sdt.rt], sdt.sf);
+        }
+        else
+        {
+            // Store
+            storeToMemory(targetAddress, state.R[sdt.rt], sdt.sf);
         }
     }
     // Load Literal
     else
     {
-        targetAddress = state.PC + sdt.simm19 * 4;
-    }
+        targetAddress = state.PC + ((int64_t)sdt.simm19) * 4;
 
-    // Simulate the Data Transfer
-    if (sdt.l == 1)
-    {
-        // Load
+        // Simulate the Data Transfer
         loadFromMemory(targetAddress, &state.R[sdt.rt], sdt.sf);
-    }
-    else
-    {
-        // Store
-        storeToMemory(targetAddress, &state.R[sdt.rt], sdt.sf);
     }
 }
 
@@ -813,6 +805,7 @@ void singleDataTransferInstruction(int instr)
 struct br
 {
     unsigned short type;
+    bool nop;
     union
     {
         int simm26;
@@ -836,17 +829,21 @@ void decodeB(int instr)
     // Supported: unconditional - 00, register - 11, conditional - 01
     switch (br.type)
     {
-    case 0: // opi = 010
+    case 0: // Unconditional
         getBitsInt(branch, 26, &br.simm26);
+        signExtendTo32Bits(&br.simm26, 26);
         break;
-    case 1: // opi = 101
-        branch >>= 5;
-        getBitsShortInt(branch, 5, &br.xn);
-        break;
-    case 3: // opi = 101
+    case 1: // Conditional
         getBitsShortInt(branch, 4, &br.cond);
         branch >>= 5;
         getBitsInt(branch, 19, &br.simm19);
+        signExtendTo32Bits(&br.simm19, 19);
+        break;
+    case 3: // Register
+        branch >>= 5;
+        getBitsShortInt(branch, 5, &br.xn);
+        branch >>= 15;
+        br.nop = branch % 2;
         break;
     default:
         perror("Not supported type of branching.\n");
@@ -859,11 +856,11 @@ void executeB(void)
     switch (br.type)
     {
     case 0: // Unconditional
-        state.PC += br.simm26 * 4;
+        state.PC += ((int64_t)br.simm26) * 4;
         break;
     case 1: // Conditional
     {
-        bool toBranch = false;
+        bool toBranch;
         switch (br.cond)
         {
         case 0: // EQ - 0000
@@ -879,31 +876,39 @@ void executeB(void)
             toBranch = (state.pstate.N != state.pstate.V);
             break;
         case 12: // GT - 1100
-            toBranch = (!state.pstate.Z && state.pstate.N == state.pstate.V);
+            toBranch = (!state.pstate.Z && (state.pstate.N == state.pstate.V));
             break;
         case 13: // LE - 1101
-            toBranch = (state.pstate.Z || state.pstate.N != state.pstate.V);
+            toBranch = (state.pstate.Z || (state.pstate.N != state.pstate.V));
             break;
         case 14: // AL - 1110
-            toBranch = 1;
+            toBranch = true;
+            break;
+        default:
+            perror("Unsupported condition branch mnemonic.");
+            exit(EXIT_FAILURE);
             break;
         }
         if (toBranch)
-        {
-            state.PC += br.simm19 * 4;
-        }
+            state.PC += ((int64_t)br.simm19) * 4;
+        else
+            state.PC += 4;
         break;
     }
     case 3: // Register
-        state.PC = (br.xn == 31)
-                       ? state.ZR
-                       : state.R[br.xn];
+        if (br.nop)
+        {
+            state.PC = (br.xn == 31)
+                           ? state.ZR
+                           : state.R[br.xn];
+        }
+        else // Nop
+            state.PC += 4;
         break;
     default:
-    {
         perror("Not supported type of data processing opeartion (opi).\n");
         exit(EXIT_FAILURE);
-    }
+        break;
     }
 }
 
@@ -931,7 +936,7 @@ int main(int argc, char **argv)
     unsigned int instr;
 
     // 0x8a000000 in hex = 2315255808 in dec
-    while ((instr = fetch()) != 2315255808)
+    while ((instr = fetch()) != 2315255808LL)
     {
         category cat = decode(instr);
 

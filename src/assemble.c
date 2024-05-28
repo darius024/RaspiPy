@@ -1,262 +1,291 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define MAXCOMPONENTS 4
+#include "assemble.h"
+#include "disassembler/disassembler.h"
+#include "utils/assembler_utils.h"
+
+#define NUM_TOKENS 5
 #define SPACE " "
 #define SPACECOMMA ", "
 #define OPCODE 0
 #define BUFFER_LENGTH 128
-#define MAX_LABEL_LENGTH 20
+#define MAX_TOKEN_LENGTH 20
 #define CPOINTER_SIZE sizeof(char *)
 #define MAX_INSTRS 200
 
+#define DP_SIZE sizeof(dataProcessing) / CPOINTER_SIZE
+#define SINGLE_OPERAND_SIZE sizeof(singleOperand) / CPOINTER_SIZE
+#define TWO_OPERAND_NO_DEST_SIZE sizeof(twoOperandNoDest) / CPOINTER_SIZE
+#define B_SIZE sizeof(branching) / CPOINTER_SIZE
+#define LS_SIZE sizeof(loadAndStore) / CPOINTER_SIZE
+#define DIR_SIZE sizeof(dir) / CPOINTER_SIZE
 
-#define DP_SIZE sizeof(dataProcessing)/CPOINTER_SIZE 
-#define SINGLE_OPERAND_SIZE sizeof(singleOperand)/CPOINTER_SIZE
-#define TWO_OPERAND_NO_DEST_SIZE sizeof(twoOperandNoDest)/CPOINTER_SIZE
-#define B_SIZE sizeof(branching)/CPOINTER_SIZE
-#define LS_SIZE sizeof(loadAndStore)/CPOINTER_SIZE
-#define DIR_SIZE sizeof(dir)/CPOINTER_SIZE
-/*
-movz x1,#1
-add x2,x1,#2
-and x0, x0, x0
-*/
+// int instr[MAX_INSTRS];
+int PC;
+// Declare them global as they are needed during the entire execution of the program
+char *tokens[NUM_TOKENS];
+char instrname[MAX_TOKEN_LENGTH];
+char buff[BUFFER_LENGTH];
 
+FILE *outputFile;
+
+struct symbolTable
+{
+    char label[MAX_TOKEN_LENGTH];
+    int address;
+    int *p;
+} symtable[MAX_INSTRS];
 int numLabel = 0;
 
-int instr[MAX_INSTRS];
-int PC;
-
-struct symbolTable {
-	char label[MAX_LABEL_LENGTH];
-	int address;
-} symtable[100];
-
-enum type {
-	dp,
-	ls,
-	b,
-	dir, // .int
-	lb
+enum type
+{
+    dp,  // data processing
+    ls,  // load/store
+    b,   // branch
+    nop, // nop
+    dir, // .int
+    lb   // label
 };
-	
-// Defined here so that code compiles
-void dpDisassemble(char **tokens, int numInstructions) {
-	return;
-}
-void lsDisassemble(char **tokens, int numInstructions) {
-	return;
-}
-void bDisassemble(char **tokens, int numInstructions) {
-	return;
-}
-void dirDisassemble(char **tokens, int numInstructions) {
-	return;
-}
 
-
+// Global keywords to determine instruction type
 const char *dataProcessing[] = {
-"add", "adds", "sub", "subs",
-"cmp", "cmn",
-"neg", "negs",
-"and", "ands", "bic", "bics", "eor", "orr", "eon", "orn",
-"tst",
-"movk", "movn", "movz", "mov", "mvn",
-"madd", "msub",
-"mul", "mneg"
-};
-
-const char *singleOperand[] = {
-"mov", "mul", "mneg", "neg", "negs", "mvn", "movz", "movn", "movk"
-};
-
-const char *twoOperandNoDest[] = {
-"cmp", "cmn", "tst"
-};
+    "add", "adds", "sub", "subs",
+    "cmp", "cmn",
+    "neg", "negs",
+    "and", "ands", "bic", "bics", "eor", "orr", "eon", "orn",
+    "tst",
+    "movk", "movn", "movz", "mov", "mvn",
+    "madd", "msub",
+    "mul", "mneg"};
 
 const char *branching[] = {
-"b", "br", "beq", "bne", "bge", "blt", "bgt", "ble", "bal"
-};
+    "b", "br", "beq", "bne", "bge", "blt", "bgt", "ble", "bal"};
 
 const char *loadAndStore[] = {
-"str", "ldr"
-};
+    "str", "ldr"};
 
 const char *directive[] = {
-".int"
-};
+    ".int"};
 
+const char *nopOp = "nop";
+const int NOP_INSTRUCTION = 0xd503201f;
 
+// Use strtok_r instead of strtok
+void decompose(char *instruction, int *numTokens)
+{   // splits an instruction into its tokens
+    char *token = strtok(instruction, SPACE); // ignores any indent at start
+    // take the mnemonic of the instruction
+    strcpy(instrname, token);
+    token = strtok(NULL, SPACE);
 
-// use strtok_r instead of strtok
-char **decompose(char *instruction, int *numTokens) { // returns array of each token (string) of an instruction
-	char **tokens = malloc(MAXCOMPONENTS * sizeof(char *));
-	char *comp = strtok(instruction, SPACE); // ignores any indent at start
-	int count = 0;
+    int count = 0;
 
-	if (tokens == NULL) { // Added check for memory allocation success
-       		fprintf(stderr, "Memory allocation failed\n");
-       	 	exit(EXIT_FAILURE);
-    	}
-
-	while (comp != NULL && count < MAXCOMPONENTS) {
-		tokens[count] = comp;
-		count++;
-		printf("%s\n", comp);
-		comp = strtok(NULL, SPACECOMMA);
-	}
-	*numTokens = count;
-	return tokens;
-
+    while (token != NULL)
+    {
+        strcpy(tokens[count], token);
+        count++;
+        token = strtok(NULL, SPACECOMMA);
+    }
+    *numTokens = count;
 }
 
-enum type identifyType(char *instrname) {
-	char *p = strchr(instrname, ':');
-	if (p) {
-		return lb;
-	}
-	for (int i = 0 ; i < DIR_SIZE ; i++) {
-		if (strcmp(instrname, directive[i]) == 0) {
-			return dir;
-		}
-	}	
-	for (int i = 0 ; i < B_SIZE ; i++) {
-		if (strcmp(instrname, branching[i]) == 0) {
-			return b;
-		}
-	}
-	for (int i = 0 ; i < LS_SIZE ; i++) {
-		if (strcmp(instrname, loadAndStore[i]) == 0) {
-			return ls;
-		}
-	}
-	for (int i = 0 ; i < DP_SIZE ; i++) {
-		if (strcmp(instrname, dataProcessing[i]) == 0) {
-			return dp;
-		}
-	}
+enum type identifyType(char *instrname)
+{
+    char *p = strchr(instrname, ':');
+    // Label
+    if (p)
+        return lb;
+    // Directive
+    for (int i = 0; i < DIR_SIZE; i++)
+    {
+        if (strcmp(instrname, directive[i]) == 0)
+            return dir;
+    }
+    // Nop
+    if (strcmp(instrname, nopOp) == 0)
+        return nop;
+    // Branching
+    for (int i = 0; i < B_SIZE; i++)
+    {
+        if (strcmp(instrname, branching[i]) == 0)
+            return b;
+    }
+    // Load and Stores
+    for (int i = 0; i < LS_SIZE; i++)
+    {
+        if (strcmp(instrname, loadAndStore[i]) == 0)
+            return ls;
+    }
+    // Data Processing
+    for (int i = 0; i < DP_SIZE; i++)
+    {
+        if (strcmp(instrname, dataProcessing[i]) == 0)
+            return dp;
+    }
 
-	fprintf(stderr, "unidentifiable type of line");
-	exit(EXIT_FAILURE);
+    fprintf(stderr, "Unidentifiable instruction name.");
+    exit(EXIT_FAILURE);
 }
 
-void disassembleRouter(char *instruction) { // Sends instruction to corresponding disassembler e.g. branchDisassemble
-	if (*instruction == '\n') {      
-		return;
-	}
-	int numTokens;
-	char **tokens = decompose(instruction, &numTokens);
-	char *instrname = tokens[0];
-	enum type instrType = identifyType(instrname);
+void disassembleRouter(char *instruction)
+{   
+    // Sends instruction to corresponding disassembler
+    int numTokens;
+    // Construct the instrname and tokens array
+    decompose(instruction, &numTokens);
+    enum type instrType = identifyType(instrname);
 
-	switch(instrType) {
-		case lb:
-			break; // Nothing to parse
-		case dir:
-			dirDisassemble(tokens, numTokens); // free the memory occupied by the tokens in these functions
-		case b:
-			bDisassemble(tokens, numTokens);
-		case ls:
-			lsDisassemble(tokens, numTokens);
-			break;
-		case dp:
-			dpDisassemble(tokens, numTokens);
-			break;
-		default:
-			// Shouldn't reach here
-			break;
-	}	
+    switch (instrType)
+    {
+    case lb:
+        return; // Nothing to parse, No update of PC
+    case dir:
+        disassembleDir(tokens[0], outputFile);
+        break;
+    case b:
+        disassembleB(instrname, tokens[0], outputFile, PC);
+        break;
+    case ls:
+        disassembleLS(instrname, tokens, numTokens, outputFile, PC);
+        break;
+    case nop:
+        fwrite(&NOP_INSTRUCTION, sizeof(int), 1, outputFile);
+        break;
+    case dp:
+        disassembleDP(instrname, tokens, numTokens, outputFile);
+        break;
+    default:
+        // Shouldn't reach here
+        break;
+    }
+    // Update PC
+    PC++;
 }
 
-void updateSymbolTable(char *buff) {
-	char *p = strchr(buff, ':');
-	if (p != NULL) { // assume only one : in a line, and must be label
-		*p = '\0';
-		strcpy(symtable[numLabel].label, buff);
-		symtable[numLabel++].address = PC;
-	}
-	else {
-		PC++;
-	}
+void updateSymbolTable(char *buff)
+{
+    char *p = strchr(buff, ':');
+    if (p != NULL)
+    {
+        // Label Case - Update the symbol table, no update of PC
+        *p = '\0';
+        strcpy(symtable[numLabel].label, buff);
+        symtable[numLabel++].address = PC * 4;
+    }
+    else
+        // Update PC to track the addresses of labels
+        PC++;
 }
 
-void loadAssemblyFile(char *filename) {
-	const char *extension = strrchr(filename, '.');
-	if (!extension || strcmp(extension + 1, "s") != 0) {
-		fprintf(stderr, "This is not a valid assembly source file: %s\n", filename);
-		exit(EXIT_FAILURE);
-	}
-	FILE *file;
-	char buff[BUFFER_LENGTH];
-	
-	file = fopen(filename, "r");
+void loadAssemblyFile(const char *filename)
+{
+    // Check for proper assembly extension
+    const char *extension = strrchr(filename, '.');
+    if (!extension || strcmp(extension + 1, "s") != 0)
+    {
+        fprintf(stderr, "Not a valid assembly source file: %s\n.", filename);
+        exit(EXIT_FAILURE);
+    }
 
-	if (!file) {
-		perror("Could not open input file.\n");
-		exit(EXIT_FAILURE);
-	}
+    FILE *file;
+    file = fopen(filename, "r");
 
-	//Two pass approach
+    if (!file)
+    {
+        perror("Could not open input file.\n");
+        exit(EXIT_FAILURE);
+    }
 
-	//First pass - build symbol table
-	PC = 0;
-	while (fgets(buff, BUFFER_LENGTH, file)) {
-		if (strlen(buff) > 1) {
-			updateSymbolTable(buff);
-		}
-	}
+    // Allocate memory for tokens
+    // This way we only allocate memory once and use it for every instruction
+    for (int i = 0; i < NUM_TOKENS; i++)
+    {
+        tokens[i] = (char *)malloc((MAX_TOKEN_LENGTH + 1) * sizeof(char));
+        if (tokens[i] == NULL)
+        {
+            perror("Failed to allocate memory for tokens.\n");
+            for (int j = 0; j < i; j++)
+                free(tokens[j]);
+            exit(EXIT_FAILURE);
+        }
+    }
 
-	//Reset pointer to beginning for reread
-	rewind(file);
+    // Two Pass Approach
 
-	//Second pass - disassemble instructions
-	PC = 0;
-	while (fgets(buff, BUFFER_LENGTH, file)) {
-		if (strlen(buff) > 1) {
-			disassembleRouter(buff);
-		}
-	}
+    // First Pass - Build symbol table
+    PC = 0;
+    while (fgets(buff, BUFFER_LENGTH, file))
+    {
+        // Remove empty line
+        buff[strlen(buff) - 1] = '\0';
+        // Check that buff is not empty
+        if (*buff != '\0')
+            updateSymbolTable(buff);
+    }
 
-	fclose(file);
+    // Reset pointer to beginning for reread
+    rewind(file);
+
+    // Second Pass - Disassemble instructions
+    PC = 0;
+    while (fgets(buff, BUFFER_LENGTH, file))
+    {
+        // Remove empty line
+        buff[strlen(buff) - 1] = '\0';
+        // Check that buff is not empty
+        if (*buff != '\0')
+            disassembleRouter(buff);
+    }
+
+    for (int i = 0; i < NUM_TOKENS; i++)
+        free(token[i]);
+
+    fclose(file);
 }
 
-void writeToBinaryFile(const char *filename) {
-	FILE *file = (strcmp(filename, "stdout")) ? stdout : fopen(filename, "wb");
-	if (file == NULL) {
-		perror("Failed to open file");
-		exit(EXIT_FAILURE);
-	}
-	const char *extension = strrchr(filename, '.');
-	if ((file != stdout) && (!extension || strcmp(extension, ".bin") != 0)) {
-		fprintf(stderr, "Not a valid binary file: %s\n", filename);
-		exit(EXIT_FAILURE);
-	}
-	for (int i = 0 ; i < PC ; i++) {
-		fwrite(&instr[i], sizeof(int), 1, file);
-	}
-	
-	if (file != stdout) {
-		fclose(file);
-	}
+void openBinaryFile(const char *filename)
+{
+    outputFile = fopen(filename, "wb");
+    if (outputFile == NULL)
+    {
+        perror("Failed to open output file.\n");
+        exit(EXIT_FAILURE);
+    }
+    // Check for proper binary file extension
+    const char *extension = strrchr(filename, '.');
+    if (!extension || strcmp(extension, ".bin") != 0)
+    {
+        fprintf(stderr, "Not a valid binary file: %s.\n", filename);
+        exit(EXIT_FAILURE);
+    }
+
+    // Instructions are written to the output file once they are disasssembled
 }
 
-int main(int argc, char **argv) {
-	char *inputFile;
-	char *outputFile;
-	if (argc >= 3) {
-		inputFile = argv[1];
-		outputFile = argv[2];
-	}	
-	else {
-		fprintf(stderr, "More arguments needed\n");
-		return EXIT_FAILURE;
-	}	
+int main(int argc, char **argv)
+{
+    char *inputFilename;
+    char *outputFilename;
+    if (argc >= 3)
+    {
+        inputFilename = argv[1];
+        outputFilename = argv[2];
+    }
+    else
+    {
+        fprintf(stderr, "Provide both an input and an output file.\n");
+        return EXIT_FAILURE;
+    }
 
-	loadAssemblyFile(inputFile);
+    // Prepare output file for writing
+    openBinaryFile(outputFilename);
 
-	writeToBinaryFile(outputFile);
+    // Read from assembly file and disassemble each line
+    loadAssemblyFile(inputFilename);
 
-	return EXIT_SUCCESS;
+    // Close output file
+    fclose(outputFile);
+
+    return EXIT_SUCCESS;
 }
-

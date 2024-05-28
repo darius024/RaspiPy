@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define MEMORY_SIZE (2 * 1024 * 1024)
+#define MEMORY_SIZE (2 * 1024 * 1024) // 2MB
 
 // Declarations
 extern int64_t shift(int64_t, unsigned short, unsigned short, bool);
@@ -15,17 +15,16 @@ unsigned char mem[MEMORY_SIZE];
 // Emulator State
 struct estate
 {
-    int64_t R[31];
-    int64_t ZR;
-    int64_t PC;
-    int64_t SP;
-    struct PSTATE
+    int64_t R[31]; // Registers R0-R30
+    int64_t ZR; // Zero Register
+    int64_t PC; // Program Counter
+    int64_t SP; // Stack Pointer
+    struct PSTATE // Processor State
     {
-        bool N;
-        bool Z;
-        bool C;
-        bool V;
-        // int mode;
+        bool N; // Negative flag
+        bool Z; // Zero flag
+        bool C; // Carry flag
+        bool V; // oVerflow flag
     } pstate;
 };
 struct estate state = {0};
@@ -33,11 +32,11 @@ struct estate state = {0};
 // Categories of instructions to support
 typedef enum
 {
-    DPImm,
-    DPReg,
-    LS,
-    B,
-    Err
+    DPImm, // Data processing immediate
+    DPReg, // Data processing register
+    LS, // Single data transfer
+    B, // Branch
+    Err // Error
 } category;
 
 //
@@ -131,45 +130,10 @@ void writeOutput(const char *filename)
 //
 // Binary Manipulation Helpers
 //
-int checkOp0(int instr)
-{
-    return instr >> 25 & 0xF;
-}
 
-void getBitsChar(uint32_t x, int nbits, char *buf)
-{
-    uint32_t mask = 1 << (nbits - 1);
-    for (int i = 0; i < nbits; i++)
-    {
-        int bit = (x & mask) != 0;
-        buf[i] = '0' + bit;
-        mask >>= 1;
-    }
-    buf[nbits] = '\0';
-}
-
-void getBitsInt(uint32_t x, int nbits, int *res)
-{
-    uint32_t mask = 1 << (nbits - 1);
-    *res = 0;
-    for (int i = 0; i < nbits; i++)
-    {
-        int bit = (x & mask) != 0;
-        *res = (0 + bit) * (1 << (nbits - i - 1)) + *res;
-        mask >>= 1;
-    }
-}
-
-void getBitsShortInt(uint32_t x, int nbits, unsigned short int *res)
-{
-    uint32_t mask = 1 << (nbits - 1);
-    *res = 0;
-    for (int i = 0; i < nbits; i++)
-    {
-        int bit = (x & mask) != 0;
-        *res = (bit) * (1 << (nbits - i - 1)) + *res;
-        mask >>= 1;
-    }
+int getBits(uint32_t x, int start, int nbits) {
+    uint32_t mask = ((1 << nbits) - 1) << start;
+    return (x & mask) >> start;
 }
 
 void signExtendTo32Bits(int *value, int nobits)
@@ -198,69 +162,70 @@ int fetch(void)
 
 category decode(int instr)
 {
-    char op0[5];
-    getBitsChar(checkOp0(instr), 4, op0);
-    printf("PC: %lx  Instruction decoded: %x, opcode0 : %s\n", state.PC, instr, op0);
-    if (op0[1] == '0')
+    uint8_t op0 = getBits(instr, 25, 4);
+    switch (op0)
     {
-        if (op0[0] == '1')
-        {
-            return (op0[2] == '0') ? DPImm : B;
-        }
+    // Data Processing Immediate - 100x
+    case 8:
+    case 9:
+        return DPImm;
+        break;
+    // Data Processing Register - x101
+    case 5:
+    case 13:
+        return DPReg;
+        break;
+    // Load and Store - x1x0
+    case 4:
+    case 6:
+    case 12:
+    case 14:
+        return LS;
+        break;
+    // Branch - 101x
+    case 10:
+    case 11:
+        return B;
+        break;
+    default:
+        return Err;
     }
-    else
-    {
-        if (op0[3] == '1')
-        {
-            if (op0[2] == '0')
-                return DPReg;
-        }
-        else
-            return LS;
-    }
-    return Err;
 }
 
 // 1.4 Data Processing Instruction (Immediate)
 
 struct dpimm
 {
-    bool sf;
-    unsigned short opc;
-    unsigned short opi;
+    bool sf; // bit-width: 0 for 32-bit, 1 for 64-bit
+    uint8_t opc; // opcode
+    uint8_t opi; // arithmetic or wide move
     union
     {
         struct
         {
-            bool sh;
-            unsigned short imm12;
-            unsigned short rn;
+            bool sh; // 12-bit left shift of imm12
+            uint16_t imm12; // 1st operand: immediate
+            uint8_t rn; // 2nd operand: register
         } arithmetic;
         struct
         {
-            unsigned short hw;
-            unsigned short imm16;
+            uint8_t hw; // (hw * 4) left shift of imm16
+            uint16_t imm16; // operand
         } widemove;
     };
-    unsigned short rd;
+    uint8_t rd; // Destination register
 } dpimm;
 
 void decodeDPImm(int instr)
 {
-    getBitsShortInt(instr, 5, &dpimm.rd);
-    instr >>= 5;
-    int operand;
-    getBitsInt(instr, 18, &operand);
-    instr >>= 18;
-    getBitsShortInt(instr, 3, &dpimm.opi);
-    instr >>= 6;
-    getBitsShortInt(instr, 2, &dpimm.opc);
-    instr >>= 2;
-    dpimm.sf = instr % 2;
+    dpimm.rd = getBits(instr, 0, 5);
+    dpimm.opi = getBits(instr, 23, 3);
+    dpimm.opc = getBits(instr, 29, 2);
+    dpimm.sf = getBits(instr, 31, 1);
 
     // Check for 32-bit or 64-bit mode for Rd
     int64_t mask = 0xFFFFFFFF;
-    if (!dpimm.sf)
+    if (dpimm.sf == 0)
         state.R[dpimm.rd] &= mask;
 
     // Type of data processing operation
@@ -268,19 +233,16 @@ void decodeDPImm(int instr)
     switch (dpimm.opi)
     {
     case 2: // opi = 010
-        getBitsShortInt(operand, 5, &dpimm.arithmetic.rn);
-        operand >>= 5;
-        getBitsShortInt(operand, 12, &dpimm.arithmetic.imm12);
-        operand >>= 12;
-        dpimm.arithmetic.sh = operand % 2;
+        dpimm.arithmetic.rn = getBits(instr, 5, 5);
+        dpimm.arithmetic.imm12 = getBits(instr, 10, 12);
+        dpimm.arithmetic.sh = getBits(instr, 22, 1);
         break;
     case 5: // opi = 101
-        getBitsShortInt(operand, 16, &dpimm.widemove.imm16);
-        operand >>= 16;
-        getBitsShortInt(operand, 2, &dpimm.widemove.hw);
+        dpimm.widemove.imm16 = getBits(instr, 5, 16);
+        dpimm.widemove.hw = getBits(instr, 21, 2);
         break;
     default:
-        perror("Not supported type of data processing operation (opi).\n");
+        perror("Unsupported type of data processing operation (opi).\n");
         exit(EXIT_FAILURE);
     }
 }
@@ -398,7 +360,7 @@ void executeDPImm(void)
     }
     default:
     {
-        perror("Not supported type of data processing opeartion (opi).\n");
+        perror("Not supported type of data processing operation (opi).\n");
         exit(EXIT_FAILURE);
     }
     }
@@ -414,42 +376,35 @@ void dataProcessingImmInstruction(int instr)
 
 struct dpr
 {
-    bool sf;
-    unsigned short opc;
-    bool m;
-    unsigned short opr;
-    unsigned short rm;
-    unsigned short operand;
-    unsigned short rn;
-    unsigned short rd;
+    bool sf; // bit-width: 0 for 32-bit, 1 for 64-bit
+    uint8_t opc; // opcode
+    bool m; // multiply flag
+    uint8_t opr; // operation: arithmetic, bit-logic, multiply
+    uint8_t rm;
+    uint8_t operand;
+    uint8_t rn;
+    uint8_t rd; // destination register
 } dpr;
 
 void decodeDPR(int instr)
 {
-    getBitsShortInt(instr, 5, &dpr.rd);
-    instr >>= 5;
-    getBitsShortInt(instr, 5, &dpr.rn);
-    instr >>= 5;
-    getBitsShortInt(instr, 6, &dpr.operand);
-    instr >>= 6;
-    getBitsShortInt(instr, 5, &dpr.rm);
-    instr >>= 5;
-    getBitsShortInt(instr, 4, &dpr.opr);
-    instr >>= 7;
-    dpr.m = instr % 2;
-    instr >>= 1;
-    getBitsShortInt(instr, 2, &dpr.opc);
-    instr >>= 2;
-    dpr.sf = instr % 2;
+    dpr.rd = getBits(instr, 0, 5);
+    dpr.rn = getBits(instr, 5, 5);
+    dpr.operand = getBits(instr, 10, 6);
+    dpr.rm = getBits(instr, 16, 5);
+    dpr.opr = getBits(instr, 21, 4);
+    dpr.m = getBits(instr, 28, 1);
+    dpr.opc = getBits(instr, 29, 2);
+    dpr.sf = getBits(instr, 31, 1);
 
     // Check for 32-bit or 64-bit mode for Rd
     int64_t mask = 0xFFFFFFFF;
-    if (!dpr.sf)
+    if (dpr.sf == 0)
         state.R[dpr.rd] &= mask;
 
     // Type of data processing operation
     // Support (M + opr): arithmetic - 01xx0, bit-logic - 00xxx, multiply - 11000
-    if (!dpr.m)
+    if (dpr.m == 0)
     {
         unsigned short shiftMode = (dpr.opr >> 1) % 4;
 
@@ -568,9 +523,8 @@ void executeDPR(void)
     }
     else
     {
-        unsigned short ra;
-        bool x = (dpr.operand >> 5) % 2;
-        getBitsShortInt(dpr.operand, 5, &ra);
+        unsigned char ra = getBits(dpr.operand, 0, 5);
+        bool x = getBits(dpr.operand, 5, 1);
 
         if (dpr.rd == 31)
             return;
@@ -639,57 +593,51 @@ int64_t shift(int64_t value, unsigned short amount, unsigned short mode, bool no
 
 struct sdt
 {
-    bool mode;
-    bool sf;
+    bool mode; // 1 for single data transfer, 0 for load literal
+    bool sf; // load size: 0 for 32-bit, 1 for 64-bit
     union
     {
         struct
         {
-            bool u;
-            bool l;
-            bool offmode;
+            bool u; // unsigned offset flag
+            bool l; // type of data transfer
+            bool offmode; // 1 for register offset, 0 for pre/post-index
             union
             {
-                unsigned short xm;
+                uint8_t xm;
                 struct
                 {
-                    int simm9;
+                    int32_t simm9;
                     bool i;
                 };
-                unsigned short imm12;
+                uint16_t imm12;
             } addrm;
-            unsigned short xn;
+            uint8_t xn;
         };
-        int simm19;
+        int32_t simm19;
     };
-    unsigned short rt;
+    uint8_t rt;
 } sdt;
 
 void decodeSDT(int instr)
 {
-    getBitsShortInt(instr, 5, &sdt.rt);
-    instr >>= 5;
-    int uncommon;
-    getBitsInt(instr, 20, &uncommon);
-    instr >>= 25;
-    sdt.sf = instr % 2;
-    sdt.mode = (instr >> 1) % 2;
+
+    sdt.rt = getBits(instr, 0, 5);
+    sdt.mode = getBits(instr, 29, 1);
+    sdt.sf = getBits(instr, 30, 1);
 
     // Type of addressing mode
     // Support: single data transfer - 1, load literal - 0
-    // Single Data Transfer
-    if (sdt.mode)
-    {
-        getBitsShortInt(uncommon, 5, &sdt.xn);
-        uncommon >>= 5;
-        unsigned short offset;
-        getBitsShortInt(uncommon, 12, &offset);
-        uncommon >>= 12;
-        sdt.l = uncommon % 2;
-        uncommon >>= 2;
-        sdt.u = uncommon % 2;
 
-        sdt.offmode = (offset >> 11) % 2;
+    // Single Data Transfer
+    if (sdt.mode == 1)
+    {
+        sdt.xn = getBits(instr, 5, 5);
+        unsigned short offset = getBits(instr, 10, 12);
+        sdt.l = getBits(instr, 22, 1);
+        sdt.u = getBits(instr, 24, 1);
+
+        sdt.offmode = getBits(instr, 21, 1);
 
         // Unsigned Immediate Offset
         if (sdt.u == 1)
@@ -697,21 +645,21 @@ void decodeSDT(int instr)
         else
         {
             // Pre/Post - Index
-            if (!sdt.offmode)
+            if (sdt.offmode == 0)
             {
-                sdt.addrm.i = (offset >> 1) % 2;
-                sdt.addrm.simm9 = offset / 4;
+                sdt.addrm.i = getBits(instr, 11, 1);
+                sdt.addrm.simm9 = getBits(instr, 12, 9);
                 signExtendTo32Bits(&sdt.addrm.simm9, 9);
             }
             // Register Offset
             else
-                getBitsShortInt(offset >> 6, 5, &sdt.addrm.xm);
+                sdt.addrm.xm = getBits(instr, 16, 5);
         }
     }
     // Load Literal
     else
     {
-        getBitsInt(uncommon, 19, &sdt.simm19);
+        sdt.simm19 = getBits(instr, 5, 19);
         signExtendTo32Bits(&sdt.simm19, 19);
     }
 }
@@ -742,7 +690,7 @@ void executeSDT(void)
     int targetAddress;
 
     // Single Data Transfer
-    if (sdt.mode)
+    if (sdt.mode == 1)
     {
         targetAddress = (sdt.xn == 31)
                             ? state.SP
@@ -759,7 +707,7 @@ void executeSDT(void)
         else
         {
             // Pre/Post - Index
-            if (!sdt.offmode)
+            if (sdt.offmode == 0)
             {
                 targetAddress += (sdt.addrm.i) ? sdt.addrm.simm9 : 0;
                 if (sdt.xn == 31)
@@ -773,7 +721,7 @@ void executeSDT(void)
         }
 
         // Simulate the Data Transfer
-        if (sdt.l)
+        if (sdt.l == 1)
         {
             // Load
             loadFromMemory(targetAddress, &state.R[sdt.rt], sdt.sf);
@@ -804,46 +752,40 @@ void singleDataTransferInstruction(int instr)
 
 struct br
 {
-    unsigned short type;
+    uint8_t type;
     bool nop;
     union
     {
-        int simm26;
-        unsigned short xn;
+        int32_t simm26;
+        uint8_t xn;
         struct
         {
-            int simm19;
-            unsigned short cond;
+            int32_t simm19;
+            uint8_t cond;
         };
     };
 } br;
 
 void decodeB(int instr)
 {
-    int branch;
-    getBitsInt(instr, 26, &branch);
-    instr >>= 30;
-    getBitsShortInt(instr, 2, &br.type);
+    br.type = getBits(instr, 30, 2);
 
     // Type of branch
     // Supported: unconditional - 00, register - 11, conditional - 01
     switch (br.type)
     {
     case 0: // Unconditional
-        getBitsInt(branch, 26, &br.simm26);
+        br.simm26 = getBits(instr, 0, 26);
         signExtendTo32Bits(&br.simm26, 26);
         break;
     case 1: // Conditional
-        getBitsShortInt(branch, 4, &br.cond);
-        branch >>= 5;
-        getBitsInt(branch, 19, &br.simm19);
+        br.cond = getBits(instr, 0, 4);
+        br.simm19 = getBits(instr, 5, 19);
         signExtendTo32Bits(&br.simm19, 19);
         break;
     case 3: // Register
-        branch >>= 5;
-        getBitsShortInt(branch, 5, &br.xn);
-        branch >>= 15;
-        br.nop = branch % 2;
+        br.xn = getBits(instr, 5, 5);
+        br.nop = getBits(instr, 20, 1);
         break;
     default:
         perror("Not supported type of branching.\n");
@@ -863,25 +805,25 @@ void executeB(void)
         bool toBranch;
         switch (br.cond)
         {
-        case 0: // EQ - 0000
+        case 0: // EQ (equal) - 0000
             toBranch = state.pstate.Z;
             break;
-        case 1: // NE - 0001
+        case 1: // NE (not equal) - 0001
             toBranch = !state.pstate.Z;
             break;
-        case 10: // GE - 1010
+        case 10: // GE (greater or equal) - 1010
             toBranch = (state.pstate.N == state.pstate.V);
             break;
-        case 11: // LT - 1011
+        case 11: // LT (less) - 1011
             toBranch = (state.pstate.N != state.pstate.V);
             break;
-        case 12: // GT - 1100
+        case 12: // GT (greater) - 1100
             toBranch = (!state.pstate.Z && (state.pstate.N == state.pstate.V));
             break;
-        case 13: // LE - 1101
+        case 13: // LE (less or equal) - 1101
             toBranch = (state.pstate.Z || (state.pstate.N != state.pstate.V));
             break;
-        case 14: // AL - 1110
+        case 14: // AL (always) - 1110
             toBranch = true;
             break;
         default:

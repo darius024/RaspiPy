@@ -1,9 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "assemble.h"
-#include "disassembler/disassembler.h"
-#include "utils/assembler_utils.h"
+#include "disassembler.h"
+#include "utils.h"
 
 #define NUM_TOKENS 5
 #define SPACE " "
@@ -30,12 +31,7 @@ char buff[BUFFER_LENGTH];
 
 FILE *outputFile;
 
-struct symbolTable
-{
-    char label[MAX_TOKEN_LENGTH];
-    int address;
-    int *p;
-} symtable[MAX_INSTRS];
+struct symbolTable symtable[MAX_INSTRS];
 int numLabel = 0;
 
 enum type
@@ -239,7 +235,7 @@ void loadAssemblyFile(const char *filename)
     }
 
     for (int i = 0; i < NUM_TOKENS; i++)
-        free(token[i]);
+        free(tokens[i]);
 
     fclose(file);
 }

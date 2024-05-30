@@ -1,28 +1,47 @@
-CC      ?= gcc
-CFLAGS  ?= -std=c17 -g\
+CC      = gcc
+CFLAGS  = -std=c17 -g\
 	-D_POSIX_SOURCE -D_DEFAULT_SOURCE\
 	-Wall -Werror -pedantic
-LDFLAGS ?= -lm
 
-.SUFFIXES: .c .o
 
-.PHONY: all clean
+LDFLAGS = -lm
 
-SRC_FILES := src/assemble.c \
-             src/disassemblers/dataProcessing.c \
-             src/disassemblers/loadAndStore.c \
-             src/disassemblers/branching.c \
-             src/disassemblers/directive.c \
-             src/utils/assemble_utils.c
+SRC_FILES := assemble.c \
+             disassembler.c \
+             utils.c  
+             # src/emulate.c 
 
-OBJ_FILES := $(SRC_FILES:.c=.o)
+RM = rm -f
 
-all: assemble emulate
+# Object files
+OBJ_FILES = $(SRC_FILES:.c=.o)
 
-assemble: assemble.o $(OBJ_FILES)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-emulate: emulate.o
+# Target executables
+EMULATE = emulate
+ASSEMBLE = assemble
 
-clean:
-	$(RM) *.o assemble emulate
+# Default target
+.PHONY: all
+all: $(EMULATE) $(ASSEMBLE)
+
+
+# Rule to build the target executable file
+# It uses the linker to combine all object files
+$(EMULATE): $(OBJ_FILES)
+	$(CC) $(CFLAGS) $(OBJ_FILES) -o $(EMULATE)
 	
+$(ASSEMBLE): $(OBJ_FILES)
+	$(CC) $(CFLAGS) $(OBJ_FILES) -o $(ASSEMBLE)
+
+# Pattern rule to compile .c files to .o files
+# This rule applies to any .c file to generate the corresponding .o file
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Clean rule to remove generated files
+# This helps to clean up the directory by removing object files and the combined object file
+.PHONY: clean
+clean:
+	$(RM) $(OBJ_FILES) $(ASSEMBLE) $(EMULATE)
+
+

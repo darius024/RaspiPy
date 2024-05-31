@@ -17,3 +17,5 @@ int getLiteral(char *literal);
 int getShift(char *shift);
 
 int maskBetweenBits(int upp, int low);
+
+

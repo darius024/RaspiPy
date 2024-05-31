@@ -66,9 +66,8 @@ int getLiteral(char *literal)
         if (!strcmp(literal, symtable[i].label))
             return symtable[i].address;
     }
-    // Assume that a label matches
-    fprintf(stderr, "Symbol table is not complete. Label %s not supported.\n", literal);
-    exit(EXIT_FAILURE);
+    // label not found
+    return -1; 
 }
 
 // Decode <shift>

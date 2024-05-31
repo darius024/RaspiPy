@@ -6,6 +6,7 @@
 
 #include "disassembler.h"
 #include "utils.h"
+#include "assemble.h"
 
 // Global keywords
 const char *singleOperand[] = {
@@ -23,6 +24,48 @@ const char *aliases[] = {
 
 // Function Prototype
 static void disassembleAliases (char *instrname, char **tokens, int numTokens, FILE *outputFile);
+
+
+//write 32 0s into file
+// void writeZeros(FILE *outputFile) {
+//     int nothing = 0;
+//     fwrite(&nothing, sizeof(int), 1, outputFile);
+// }
+
+void updateLabelMap(FILE *outputFile, unDefTypes type, char* labelName) {
+    unDefLables[labelIdx].offset = ftell(outputFile);
+    unDefLables[labelIdx].type = type;
+    strcpy(unDefLables[labelIdx++].label,labelName);
+}
+
+
+void handleUnDefLabel(FILE *outputFile, unDefTypes type, int idx){
+    int PC = unDefLables[idx].offset / 8;
+    
+    fseek(outputFile, unDefLables[idx].offset, SEEK_SET);
+    int literal = getLiteral(unDefLables[idx].label);
+    
+    int instruction;
+    fread(&instruction, 4, 1, outputFile);
+    
+    int offset = (literal - PC) >> 2;
+    
+    switch (type)
+    {
+    case ll:
+    case bc:
+        instruction |= (offset << 5) & maskBetweenBits(23, 5);
+        break;
+    case bu:
+        instruction |= offset & maskBetweenBits(25, 0);
+        break;
+    default:
+        break;
+    }
+    fwrite(&instruction, sizeof(int), 1, outputFile);
+}
+
+
 
 // 2.3.1 Data Processing Instructions
 void disassembleDP(char *instrname, char **tokens, int numTokens, FILE *outputFile)
@@ -385,8 +428,15 @@ void disassembleLS(char *instrname, char **tokens, int numTokens, FILE *outputFi
     else
     {
         // Load Literal
-        int offset = (getLiteral(tokens[1]) - PC * 4) >> 2;
+        int literal = getLiteral(tokens[1]);
+        if (literal == -1) {
+            updateLabelMap(outputFile, ll, tokens[1]);
+            fwrite(&instruction, sizeof(int), 1, outputFile);
+            return;
+        } 
+        int offset = (literal - PC * 4) >> 2;
         instruction |= (offset << 5) & maskBetweenBits(23, 5);
+    
     }
     // instr[PC++] = instruction;
     fwrite(&instruction, sizeof(int), 1, outputFile);
@@ -403,7 +453,13 @@ void disassembleB(char *instrname, char *token, FILE *outputFile, int PC)
     if (!strcmp(instrname, "b"))
     {
         // Set simm26
-        int offset = (getLiteral(token) - PC * 4) >> 2;
+        int literal = getLiteral(token);
+        if (literal == -1) {
+            updateLabelMap(outputFile, bu, token);
+            fwrite(&instruction, sizeof(int), 1, outputFile);
+            return;
+        } 
+        int offset = (literal - PC * 4) >> 2;
         instruction |= offset & maskBetweenBits(25, 0);
     }
     // Register
@@ -419,9 +475,7 @@ void disassembleB(char *instrname, char *token, FILE *outputFile, int PC)
     {
         // Set 1s in the right places
         instruction |= 1 << 30;
-        // Set simm19
-        int offset = (getLiteral(token) - PC * 4) >> 2;
-        instruction |= (offset << 5) & maskBetweenBits(23, 5);
+
         // Take by cases regarding the mnemonic
         char *p = instrname + 2;
         switch (*p)
@@ -448,6 +502,16 @@ void disassembleB(char *instrname, char *token, FILE *outputFile, int PC)
             // Can't reach here
             break;
         }
+        // Set simm19
+        int literal = getLiteral(token);
+        if (literal == -1) {
+            updateLabelMap(outputFile, bc, token);
+            fwrite(&instruction, sizeof(int), 1, outputFile);
+            return;
+        } 
+        int offset = (literal - PC * 4) >> 2;
+        instruction |= (offset << 5) & maskBetweenBits(23, 5);
+        
     }
     // instr[PC++] = instruction;
     fwrite(&instruction, sizeof(int), 1, outputFile);

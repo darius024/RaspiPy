@@ -34,6 +34,9 @@ FILE *outputFile;
 struct symbolTable symtable[MAX_INSTRS];
 int numLabel = 0;
 
+labelMap unDefLables[MAX_INSTRS];
+int labelIdx = 0;
+
 enum type
 {
     dp,  // data processing

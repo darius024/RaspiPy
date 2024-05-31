@@ -325,12 +325,12 @@ void disassembleLS(char *instrname, char **tokens, int numTokens, FILE *outputFi
         instruction |= (1 << 31) + (1 << 29);
         // Set L: 1 - load, 0 - store
         instruction |= (!strcmp(instrname, "ldr")) << 22;
-        if (strchr(tokens[1], ']') != NULL)
-            *(tokens[1] + 4) = '\0'; // remove ] if necessary
+        char *p = strchr(tokens[1], ']');
+		if (p != NULL)
+			*p = '\0'; // remove ] if necessary
         // Set xn
         instruction |= getRegister(tokens[1] + 1) << 5; // remove [
 
-        // Specific features for all
         // Zero Unsigned Offset
         if (numTokens == 2)
         {
@@ -342,7 +342,7 @@ void disassembleLS(char *instrname, char **tokens, int numTokens, FILE *outputFi
             return;
         }
         // numTokens = 3, so there is an immediate value or register provided
-        char *p = strchr(tokens[2], ']');
+        p = strchr(tokens[2], ']');
         char *q = strchr(tokens[2], '!');
         if (p != NULL)
         {

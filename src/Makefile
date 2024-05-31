@@ -8,30 +8,33 @@ LDFLAGS = -lm
 
 SRC_FILES := assemble.c \
              disassembler.c \
-             utils.c  
-             # src/emulate.c 
+             utils.c \
+	     emulate.c 
 
 RM = rm -f
 
 # Object files
-OBJ_FILES = $(SRC_FILES:.c=.o)
+ASSEMBLE_OBJS = assemble.o disassembler.o utils.o
+EMULATE_OBJS = emulate.o
 
 # Target executables
 EMULATE = emulate
 ASSEMBLE = assemble
 
 # Default target
-.PHONY: all
+.PHONY: all disassembler utils
 all: $(EMULATE) $(ASSEMBLE)
 
 
 # Rule to build the target executable file
 # It uses the linker to combine all object files
-$(EMULATE): $(OBJ_FILES)
-	$(CC) $(CFLAGS) $(OBJ_FILES) -o $(EMULATE)
-	
-$(ASSEMBLE): $(OBJ_FILES)
-	$(CC) $(CFLAGS) $(OBJ_FILES) -o $(ASSEMBLE)
+
+$(ASSEMBLE): $(ASSEMBLE_OBJS)
+	$(CC) $(ASSEMBLE_OBJS) -o $(ASSEMBLE) $(LDFLAGS)
+
+# Rule to build the emulate executable
+$(EMULATE): $(EMULATE_OBJS)
+	$(CC) $(EMULATE_OBJS) -o $(EMULATE) $(LDFLAGS)
 
 # Pattern rule to compile .c files to .o files
 # This rule applies to any .c file to generate the corresponding .o file
@@ -42,6 +45,6 @@ $(ASSEMBLE): $(OBJ_FILES)
 # This helps to clean up the directory by removing object files and the combined object file
 .PHONY: clean
 clean:
-	$(RM) $(OBJ_FILES) $(ASSEMBLE) $(EMULATE)
+	$(RM) $(ASSEMBLE_OBJS) $(EMULATE_OBJS) $(ASSEMBLE) $(EMULATE)
 
 

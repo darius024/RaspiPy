@@ -14,27 +14,31 @@
 #define MAX_TOKEN_LENGTH 20
 #define CPOINTER_SIZE sizeof(char *)
 #define MAX_INSTRS 200
+#define NOP_INSTRUCTION 0xd503201f
 
 #define DP_SIZE sizeof(dataProcessing) / CPOINTER_SIZE
 #define SINGLE_OPERAND_SIZE sizeof(singleOperand) / CPOINTER_SIZE
 #define TWO_OPERAND_NO_DEST_SIZE sizeof(twoOperandNoDest) / CPOINTER_SIZE
 #define B_SIZE sizeof(branching) / CPOINTER_SIZE
 #define LS_SIZE sizeof(loadAndStore) / CPOINTER_SIZE
-#define DIR_SIZE sizeof(dir) / CPOINTER_SIZE
+#define DIR_SIZE sizeof(directive) / CPOINTER_SIZE
 
 // int instr[MAX_INSTRS];
 int PC;
-// Declare them global as they are needed during the entire execution of the program
-char *tokens[NUM_TOKENS];
-char instrname[MAX_TOKEN_LENGTH];
-char buff[BUFFER_LENGTH];
+
+typedef struct
+{
+    char *tokens[NUM_TOKENS];
+    char instrname[MAX_TOKEN_LENGTH];
+    char buff[BUFFER_LENGTH];
+} instruction;
 
 FILE *outputFile;
 
 struct symbolTable symtable[MAX_INSTRS];
 int numLabel = 0;
 
-labelMap unDefLables[MAX_INSTRS];
+struct labelMap unDefLables[MAX_INSTRS];
 int labelIdx = 0;
 
 enum type
@@ -48,7 +52,7 @@ enum type
 };
 
 // Global keywords to determine instruction type
-const char *dataProcessing[] = {
+static const char *dataProcessing[] = {
     "add", "adds", "sub", "subs",
     "cmp", "cmn",
     "neg", "negs",
@@ -58,32 +62,72 @@ const char *dataProcessing[] = {
     "madd", "msub",
     "mul", "mneg"};
 
-const char *branching[] = {
-    "b", "br", "beq", "bne", "bge", "blt", "bgt", "ble", "bal"};
+static const char *branching[] = {
+    "b", "br", "b.eq", "b.ne", "b.ge", "b.lt", "b.gt", "b.le", "b.al"};
 
-const char *loadAndStore[] = {
+static const char *loadAndStore[] = {
     "str", "ldr"};
 
-const char *directive[] = {
+static const char *directive[] = {
     ".int"};
 
-const char *nopOp = "nop";
-const int NOP_INSTRUCTION = 0xd503201f;
+static const char *nopOp = "nop";
+static uint32_t nopInstr = NOP_INSTRUCTION;
+
+instruction *initializeStruct()
+{
+    instruction *instr = (instruction *)malloc(sizeof(instruction));
+
+    // Allocate memory for tokens
+    for (int i = 0; i < NUM_TOKENS; i++)
+    {
+        instr->tokens[i] = (char *)malloc((MAX_TOKEN_LENGTH + 1) * sizeof(char));
+        if (instr->tokens[i] == NULL)
+        {
+            perror("Failed to allocate memory for tokens.\n");
+            for (int j = 0; j < i; j++)
+                free(instr->tokens[j]);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    return instr;
+}
+
+void freeStruct(instruction *instr)
+{
+    for (int i = 0; i < NUM_TOKENS; i++)
+    {
+        free(instr->tokens[i]);
+    }
+    free(instr);
+}
+
+void updateSymbolTable(instruction *instr)
+{
+    char *p = strchr(instr->instrname, ':');
+    if (p != NULL)
+    {
+        // Label Case - Update the symbol table, no update of PC
+        *p = '\0';
+        strcpy(symtable[numLabel].label, instr->instrname);
+        symtable[numLabel++].address = PC * 4;
+    }
+}
 
 // Use strtok_r instead of strtok
-void decompose(char *instruction, int *numTokens)
-{   // splits an instruction into its tokens
-    char *token = strtok(instruction, SPACE); // ignores any indent at start
+void decompose(instruction *instr, int *numTokens)
+{                                             // splits an instruction into its tokens
+    char *token = strtok(instr->buff, SPACE); // ignores any indent at start
     // take the mnemonic of the instruction
-    strcpy(instrname, token);
-    token = strtok(NULL, SPACE);
+    strcpy(instr->instrname, token);
+    token = strtok(NULL, SPACECOMMA);
 
     int count = 0;
 
     while (token != NULL)
     {
-        strcpy(tokens[count], token);
-        count++;
+        strcpy(instr->tokens[count++], token);
         token = strtok(NULL, SPACECOMMA);
     }
     *numTokens = count;
@@ -127,32 +171,33 @@ enum type identifyType(char *instrname)
     exit(EXIT_FAILURE);
 }
 
-void disassembleRouter(char *instruction)
-{   
+void disassembleRouter(instruction *instr)
+{
     // Sends instruction to corresponding disassembler
     int numTokens;
     // Construct the instrname and tokens array
-    decompose(instruction, &numTokens);
-    enum type instrType = identifyType(instrname);
+    decompose(instr, &numTokens);
+    enum type instrType = identifyType(instr->instrname);
 
     switch (instrType)
     {
     case lb:
-        return; // Nothing to parse, No update of PC
+        updateSymbolTable(instr);
+        return; // No update of PC
     case dir:
-        disassembleDir(tokens[0], outputFile);
+        disassembleDir(instr->tokens[0], outputFile);
         break;
     case b:
-        disassembleB(instrname, tokens[0], outputFile, PC);
+        disassembleB(instr->instrname, instr->tokens[0], outputFile, PC);
         break;
     case ls:
-        disassembleLS(instrname, tokens, numTokens, outputFile, PC);
+        disassembleLS(instr->instrname, instr->tokens, numTokens, outputFile, PC);
         break;
     case nop:
-        fwrite(&NOP_INSTRUCTION, sizeof(int), 1, outputFile);
+        fwrite(&nopInstr, sizeof(int), 1, outputFile);
         break;
     case dp:
-        disassembleDP(instrname, tokens, numTokens, outputFile);
+        disassembleDP(instr->instrname, instr->tokens, numTokens, outputFile);
         break;
     default:
         // Shouldn't reach here
@@ -162,22 +207,7 @@ void disassembleRouter(char *instruction)
     PC++;
 }
 
-void updateSymbolTable(char *buff)
-{
-    char *p = strchr(buff, ':');
-    if (p != NULL)
-    {
-        // Label Case - Update the symbol table, no update of PC
-        *p = '\0';
-        strcpy(symtable[numLabel].label, buff);
-        symtable[numLabel++].address = PC * 4;
-    }
-    else
-        // Update PC to track the addresses of labels
-        PC++;
-}
-
-void loadAssemblyFile(const char *filename)
+void loadAssemblyFile(const char *filename, instruction *instr)
 {
     // Check for proper assembly extension
     const char *extension = strrchr(filename, '.');
@@ -196,49 +226,16 @@ void loadAssemblyFile(const char *filename)
         exit(EXIT_FAILURE);
     }
 
-    // Allocate memory for tokens
-    // This way we only allocate memory once and use it for every instruction
-    for (int i = 0; i < NUM_TOKENS; i++)
-    {
-        tokens[i] = (char *)malloc((MAX_TOKEN_LENGTH + 1) * sizeof(char));
-        if (tokens[i] == NULL)
-        {
-            perror("Failed to allocate memory for tokens.\n");
-            for (int j = 0; j < i; j++)
-                free(tokens[j]);
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    // Two Pass Approach
-
-    // First Pass - Build symbol table
+    // One Pass Approach
     PC = 0;
-    while (fgets(buff, BUFFER_LENGTH, file))
+    while (fgets(instr->buff, BUFFER_LENGTH, file))
     {
         // Remove empty line
-        buff[strlen(buff) - 1] = '\0';
+        instr->buff[strlen(instr->buff) - 1] = '\0';
         // Check that buff is not empty
-        if (*buff != '\0')
-            updateSymbolTable(buff);
+        if (*instr->buff != '\0')
+            disassembleRouter(instr);
     }
-
-    // Reset pointer to beginning for reread
-    rewind(file);
-
-    // Second Pass - Disassemble instructions
-    PC = 0;
-    while (fgets(buff, BUFFER_LENGTH, file))
-    {
-        // Remove empty line
-        buff[strlen(buff) - 1] = '\0';
-        // Check that buff is not empty
-        if (*buff != '\0')
-            disassembleRouter(buff);
-    }
-
-    for (int i = 0; i < NUM_TOKENS; i++)
-        free(tokens[i]);
 
     fclose(file);
 }
@@ -277,11 +274,18 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
+    instruction *instr = initializeStruct();
+
     // Prepare output file for writing
     openBinaryFile(outputFilename);
 
     // Read from assembly file and disassemble each line
-    loadAssemblyFile(inputFilename);
+    loadAssemblyFile(inputFilename, instr);
+
+    // One-pass: Compute previous undefined instructions
+    handleUnDefLabels(outputFile);
+
+    freeStruct(instr);
 
     // Close output file
     fclose(outputFile);

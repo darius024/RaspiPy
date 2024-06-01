@@ -20,17 +20,16 @@ typedef enum {
  } unDefTypes;
 
 //one pass structure
-typedef struct {
-    char* label;
+struct labelMap {
+    char label[MAX_TOKEN_LENGTH];
     long offset;
+    uint32_t instr;
     unDefTypes type;
-} labelMap;
+};
 
 
-extern labelMap unDefLables[MAX_INSTRS];
-
+extern struct labelMap unDefLables[MAX_INSTRS];
 extern int labelIdx;
-
 
 extern struct symbolTable symtable[MAX_INSTRS];
 extern int numLabel;

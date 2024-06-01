@@ -9,48 +9,47 @@
 #include "assemble.h"
 
 // Global keywords
-const char *singleOperand[] = {
-"mov", "mul", "mneg", "neg", "negs", "mvn", "movz", "movn", "movk"};
-const char *twoOperandNoDest[] = {
-"cmp", "cmn", "tst"};
-const char *arithmetics[] = {
+static const char *singleOperand[] = {
+    "mov", "mul", "mneg", "neg", "negs", "mvn", "movz", "movn", "movk"};
+static const char *twoOperandNoDest[] = {
+    "cmp", "cmn", "tst"};
+static const char *arithmetics[] = {
     "add", "adds", "sub", "subs"};
-const char *logical[] = {
+static const char *logical[] = {
     "and", "bic", "orr", "orn", "eor", "eon", "ands", "bics"};
-const char *shifts[] = {
-    "lsl", "lsr", "asr", "ror"};
-const char *aliases[] = {
+static const char *aliases[] = {
     "cmp", "cmn", "neg", "negs", "tst", "mvn", "mov", "mul", "mneg"};
 
 // Function Prototype
-static void disassembleAliases (char *instrname, char **tokens, int numTokens, FILE *outputFile);
+static void disassembleAliases(char *instrname, char **tokens, int numTokens, FILE *outputFile);
 
+// write 32 0s into file
+//  void writeZeros(FILE *outputFile) {
+//      int nothing = 0;
+//      fwrite(&nothing, sizeof(int), 1, outputFile);
+//  }
 
-//write 32 0s into file
-// void writeZeros(FILE *outputFile) {
-//     int nothing = 0;
-//     fwrite(&nothing, sizeof(int), 1, outputFile);
-// }
-
-void updateLabelMap(FILE *outputFile, unDefTypes type, char* labelName) {
+static void updateLabelMap(FILE *outputFile, unDefTypes type, uint32_t instr, char *labelName)
+{
     unDefLables[labelIdx].offset = ftell(outputFile);
     unDefLables[labelIdx].type = type;
-    strcpy(unDefLables[labelIdx++].label,labelName);
+    unDefLables[labelIdx].instr = instr;
+    strcpy(unDefLables[labelIdx++].label, labelName);
 }
 
+static void handleUnDefLabel(FILE *outputFile, int idx)
+{
+    uint32_t PC = unDefLables[idx].offset;
 
-void handleUnDefLabel(FILE *outputFile, unDefTypes type, int idx){
-    int PC = unDefLables[idx].offset / 8;
-    
     fseek(outputFile, unDefLables[idx].offset, SEEK_SET);
     int literal = getLiteral(unDefLables[idx].label);
-    
-    int instruction;
-    fread(&instruction, 4, 1, outputFile);
-    
+
+    uint32_t instruction = unDefLables[idx].instr;
+
     int offset = (literal - PC) >> 2;
-    
-    switch (type)
+    printf("lit: %d pc: %d", literal, PC);
+
+    switch (unDefLables[idx].type)
     {
     case ll:
     case bc:
@@ -65,7 +64,13 @@ void handleUnDefLabel(FILE *outputFile, unDefTypes type, int idx){
     fwrite(&instruction, sizeof(int), 1, outputFile);
 }
 
-
+void handleUnDefLabels(FILE *outputFile)
+{
+    for (int i = 0; i < labelIdx; i++)
+    {
+        handleUnDefLabel(outputFile, i);
+    }
+}
 
 // 2.3.1 Data Processing Instructions
 void disassembleDP(char *instrname, char **tokens, int numTokens, FILE *outputFile)
@@ -150,11 +155,11 @@ void disassembleDP(char *instrname, char **tokens, int numTokens, FILE *outputFi
 
             // Set opc
             // Cases: movn, movk, movz
-            if (strcmp(instrname, "movn")) // movz, movk cases
+            if (strcmp(instrname, "movn") != 0) // movz, movk cases
             {
                 // Set opc to 10
                 instruction |= 1 << 30;
-                if (!strcmp(instrname, "movk"))
+                if (strcmp(instrname, "movk") == 0)
                     instruction |= 1 << 29;
             }
             // instr[PC++] = instruction;
@@ -261,10 +266,9 @@ void disassembleDP(char *instrname, char **tokens, int numTokens, FILE *outputFi
     fwrite(&instruction, sizeof(int), 1, outputFile);
 }
 
-
 // Assemble aliases
 // Static because we don't call it explicitly
-static void disassembleAliases (char *instrname, char **tokens, int numTokens, FILE *outputFile)
+static void disassembleAliases(char *instrname, char **tokens, int numTokens, FILE *outputFile)
 {
     // 9 cases
     // 0 - cmp, 1 - cmn, 2(3) - neg(s), 4 - tst,
@@ -345,7 +349,6 @@ static void disassembleAliases (char *instrname, char **tokens, int numTokens, F
     disassembleDP(instrname, tokens, ++numTokens, outputFile);
 }
 
-
 // 2.3.2 Single Data Transfer Instructions
 void disassembleLS(char *instrname, char **tokens, int numTokens, FILE *outputFile, int PC)
 {
@@ -369,8 +372,8 @@ void disassembleLS(char *instrname, char **tokens, int numTokens, FILE *outputFi
         // Set L: 1 - load, 0 - store
         instruction |= (!strcmp(instrname, "ldr")) << 22;
         char *p = strchr(tokens[1], ']');
-		if (p != NULL)
-			*p = '\0'; // remove ] if necessary
+        if (p != NULL)
+            *p = '\0'; // remove ] if necessary
         // Set xn
         instruction |= getRegister(tokens[1] + 1) << 5; // remove [
 
@@ -429,19 +432,18 @@ void disassembleLS(char *instrname, char **tokens, int numTokens, FILE *outputFi
     {
         // Load Literal
         int literal = getLiteral(tokens[1]);
-        if (literal == -1) {
-            updateLabelMap(outputFile, ll, tokens[1]);
-            fwrite(&instruction, sizeof(int), 1, outputFile);
+        if (literal == -1)
+        {
+            updateLabelMap(outputFile, ll, instruction, tokens[1]);
+            fwrite(&instruction, sizeof(int), 1, outputFile); // will be overwritten
             return;
-        } 
+        }
         int offset = (literal - PC * 4) >> 2;
         instruction |= (offset << 5) & maskBetweenBits(23, 5);
-    
     }
     // instr[PC++] = instruction;
     fwrite(&instruction, sizeof(int), 1, outputFile);
 }
-
 
 // 2.3.3 Branching Instructions
 void disassembleB(char *instrname, char *token, FILE *outputFile, int PC)
@@ -454,11 +456,12 @@ void disassembleB(char *instrname, char *token, FILE *outputFile, int PC)
     {
         // Set simm26
         int literal = getLiteral(token);
-        if (literal == -1) {
-            updateLabelMap(outputFile, bu, token);
-            fwrite(&instruction, sizeof(int), 1, outputFile);
+        if (literal == -1)
+        {
+            updateLabelMap(outputFile, bu, instruction, token);
+            fwrite(&instruction, sizeof(int), 1, outputFile); // will be overwritten
             return;
-        } 
+        }
         int offset = (literal - PC * 4) >> 2;
         instruction |= offset & maskBetweenBits(25, 0);
     }
@@ -504,19 +507,18 @@ void disassembleB(char *instrname, char *token, FILE *outputFile, int PC)
         }
         // Set simm19
         int literal = getLiteral(token);
-        if (literal == -1) {
-            updateLabelMap(outputFile, bc, token);
-            fwrite(&instruction, sizeof(int), 1, outputFile);
+        if (literal == -1)
+        {
+            updateLabelMap(outputFile, bc, instruction, token);
+            fwrite(&instruction, sizeof(int), 1, outputFile); // will be overwritten
             return;
-        } 
+        }
         int offset = (literal - PC * 4) >> 2;
         instruction |= (offset << 5) & maskBetweenBits(23, 5);
-        
     }
     // instr[PC++] = instruction;
     fwrite(&instruction, sizeof(int), 1, outputFile);
 }
-
 
 // 2.3.4 Special Instructions/Directives
 void disassembleDir(char *dir, FILE *outputFile)

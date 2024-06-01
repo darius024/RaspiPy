@@ -2,10 +2,15 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include "assemble.h"
 
-#include "utils.h"
-#include "assemble.h" 
-#include "disassembler.h" // To retrieve const char *shifts
+// extern struct symbolTable symtable[MAX_INSTRS];
+// extern int numLabel = 0;
+
+// Utility Tools For Assembler
+
+static const char *shifts[] = {
+    "lsl", "lsr", "asr", "ror"};
 
 // Decode 32-bit (0) or 64-bit mode (1)
 int getMode(char *rd)
@@ -60,9 +65,8 @@ int getLiteral(char *literal)
         if (!strcmp(literal, symtable[i].label))
             return symtable[i].address;
     }
-    // Assume that a label matches
-    fprintf(stderr, "Symbol table is not complete. Label %s not supported.\n", literal);
-    exit(EXIT_FAILURE);
+    // Label not found
+    return -1; 
 }
 
 // Decode <shift>

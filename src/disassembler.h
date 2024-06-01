@@ -12,6 +12,6 @@ extern void disassembleB(char *instrname, char *token, FILE *outputFile, int PC)
 
 extern void disassembleDir(char *dir, FILE *outputFile);
 
-extern const char *shifts[];
+extern void handleUnDefLabels(FILE *outputFile);
 
 #endif

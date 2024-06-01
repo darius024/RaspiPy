@@ -2,6 +2,7 @@
 #define UTILS_H
 
 #include <stdbool.h>
+// #include "assemble.h"
 
 // Function Prototypes
 extern int getMode(char *rd);

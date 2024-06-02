@@ -390,11 +390,8 @@ void disassembleLS(char *instrname, char **tokens, int numTokens, FILE *outputFi
         // numTokens = 3, so there is an immediate value or register provided
         char *cb2 = strchr(tokens[2], ']');
         char *exM = strchr(tokens[2], '!');
-        if (cb2 != NULL)
+        if (cb2 != NULL && exM == NULL)
         {
-            //*cb2 = '\0'; // remove ] or ]!
-            if (exM == NULL)
-            {
                 if (strchr(tokens[2], '#') != NULL)
                 {
                     // Unsigned Immediate Offset
@@ -415,9 +412,8 @@ void disassembleLS(char *instrname, char **tokens, int numTokens, FILE *outputFi
                 // instr[PC++] = instruction;
                 fwrite(&instruction, sizeof(int), 1, outputFile);
                 return;
-            }
-            // Deal with Pre-Indexed after if, so pass through
         }
+        // Deal with Pre-Indexed after if, so pass through
         // Pre-Indexed & Post-Indexed
         // Set 1s
         instruction |= 1 << 10;

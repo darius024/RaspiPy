@@ -371,9 +371,9 @@ void disassembleLS(char *instrname, char **tokens, int numTokens, FILE *outputFi
         instruction |= (1 << 31) + (1 << 29);
         // Set L: 1 - load, 0 - store
         instruction |= (!strcmp(instrname, "ldr")) << 22;
-        char *p = strchr(tokens[1], ']');
-        if (p != NULL)
-            *p = '\0'; // remove ] if necessary
+        char *cb1 = strchr(tokens[1], ']');
+        if (cb1 != NULL)
+            *cb1 = '\0'; // remove ] if necessary
         // Set xn
         instruction |= getRegister(tokens[1] + 1) << 5; // remove [
 
@@ -388,12 +388,12 @@ void disassembleLS(char *instrname, char **tokens, int numTokens, FILE *outputFi
             return;
         }
         // numTokens = 3, so there is an immediate value or register provided
-        p = strchr(tokens[2], ']');
-        char *q = strchr(tokens[2], '!');
-        if (p != NULL)
+        char *cb2 = strchr(tokens[2], ']');
+        char *exM = strchr(tokens[2], '!');
+        if (cb2 != NULL)
         {
-            *p = '\0'; // remove ] or ]!
-            if (q == NULL)
+            //*cb2 = '\0'; // remove ] or ]!
+            if (exM == NULL)
             {
                 if (strchr(tokens[2], '#') != NULL)
                 {
@@ -422,7 +422,7 @@ void disassembleLS(char *instrname, char **tokens, int numTokens, FILE *outputFi
         // Set 1s
         instruction |= 1 << 10;
         // Set I: 1 - pre, 0 - posr
-        instruction |= (p != NULL) << 11;
+        instruction |= (cb2 != NULL) << 11;
         // Set simm9
         int simm9 = getImmediate(tokens[2]);
         // Apply mask because the value is signed

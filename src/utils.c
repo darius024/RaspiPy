@@ -40,7 +40,7 @@ int getImmediate(char *imm)
 int getRegister(char *rd)
 {
     char *p = rd + 1;
-    if (!strcmp(p, "sp") || !strcmp(p, "zr"))
+    if (!strncasecmp(p, "sp",2) || !strncasecmp(p, "zr", 2))
         return 31;
     return atoi(p);
 }

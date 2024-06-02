@@ -117,18 +117,25 @@ void updateSymbolTable(instruction *instr)
 
 // Use strtok_r instead of strtok
 void decompose(instruction *instr, int *numTokens)
-{                                             // splits an instruction into its tokens
-    char *token = strtok(instr->buff, SPACE); // ignores any indent at start
+{                                             
+    char *instrSavePntr = NULL; //save pointer for instruction maybe make global/static
+
+    // splits an instruction into its tokens
+    //char *token = strtok(instr->buff, SPACE); // ignores any indent at start
+    char *token = strtok_r(instr->buff, SPACE, &instrSavePntr);
     // take the mnemonic of the instruction
     strcpy(instr->instrname, token);
-    token = strtok(NULL, SPACECOMMA);
+    //token = strtok(NULL, SPACECOMMA);
+    token = strtok_r(NULL, SPACECOMMA, &instrSavePntr);
+
 
     int count = 0;
 
     while (token != NULL)
     {
         strcpy(instr->tokens[count++], token);
-        token = strtok(NULL, SPACECOMMA);
+        //token = strtok(NULL, SPACECOMMA);
+        token = strtok_r(NULL, SPACECOMMA, &instrSavePntr);
     }
     *numTokens = count;
 }

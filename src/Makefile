@@ -14,7 +14,7 @@ SRC_FILES := assemble.c \
 RM = rm -f
 
 # Object files
-ASSEMBLE_OBJS = assemble.o disassembler.o utils.o
+ASSEMBLE_OBJS = assemble.o disassembler.o utils.o vector.o
 EMULATE_OBJS = emulate.o
 
 # Target executables

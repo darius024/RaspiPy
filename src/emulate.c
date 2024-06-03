@@ -735,44 +735,34 @@ uint32_t fetch(void) {
 
 Instruction decode(uint32_t instr) {
     uint8_t op0 = getBits(instr, 25, 4);
-    switch (op0) {
-        // Data Processing Immediate - 100x
-        case 8:
-        case 9:
-            return decodeDPImm(instr);
-        // Data Processing Register - x101
-        case 5:
-        case 13:
-            return decodeDPR(instr);
-        // Load and Store - x1x0
-        case 4:
-        case 6:
-        case 12:
-        case 14:
-            return decodeSDT(instr);
-        // Branch - 101x
-        case 10:
-        case 11:
-            return decodeB(instr);
-        default:
-            perror("Unsupported opcode.\n");
-            exit(EXIT_FAILURE);
+
+    if (getBits(op0, 1, 3) == 4) { // Data Processing Immediate - 100x
+        return decodeDPImm(instr);
+    } else if (getBits(op0, 0, 3) == 5) { // Data Processing Register - x101
+        return decodeDPR(instr);
+    } else if (getBits(op0, 2, 1) == 1 && getBits(op0, 0, 1) == 0) { // Load & Store - x1x0
+        return decodeSDT(instr);
+    } else if (getBits(op0, 1, 3) == 5) { // Branch - 101x
+        return decodeB(instr);
+    } else {
+        perror("Unsupported op0.\n");
+        exit(EXIT_FAILURE);
     }
 }
 
-void execute(Instruction decoded) {
-    switch (decoded.instructionType) {
+void execute(Instruction instruction) {
+    switch (instruction.instructionType) {
         case isDPI:
-            executeDPImm(decoded);
+            executeDPImm(instruction);
             break;
         case isDPR:
-            executeDPR(decoded);
+            executeDPR(instruction);
             break;
         case isSDT:
-            executeSDT(decoded);
+            executeSDT(instruction);
             break;
         case isBranch:
-            executeB(decoded);
+            executeB(instruction);
             break;
         default:
             perror("Unsupported instruction type.\n");

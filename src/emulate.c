@@ -101,7 +101,8 @@ struct Branch {
         uint8_t xn;
         struct {
             int32_t simm19;
-            uint8_t cond;
+            uint8_t condTag;
+            uint8_t condInvert;
         };
     };
 };
@@ -654,7 +655,8 @@ Instruction decodeB(uint32_t instr) {
             signExtendTo32Bits(&br.simm26, 26);
             break;
         case 1: // Conditional
-            br.cond = getBits(instr, 0, 4);
+            br.condInvert = getBits(instr, 0, 1);
+            br.condTag = getBits(instr, 1, 3);
             br.simm19 = getBits(instr, 5, 19);
             signExtendTo32Bits(&br.simm19, 19);
             break;
@@ -679,32 +681,22 @@ void executeB(Instruction instruction) {
             break;
         case 1: { // Conditional
             bool toBranch;
-            switch (br.cond) {
-                case 0: // EQ (equal) - 0000
-                    toBranch = state.pstate.Z;
+            switch (br.condTag) {
+                case 0: // EQ (equal) - 0000, NE (not equal) - 0001
+                    toBranch = state.pstate.Z ^ br.condInvert;
                     break;
-                case 1: // NE (not equal) - 0001
-                    toBranch = !state.pstate.Z;
+                case 5: // GE (greater or equal) - 1010, LT (less) - 1011
+                    toBranch = (state.pstate.N == state.pstate.V) ^ br.condInvert;
                     break;
-                case 10: // GE (greater or equal) - 1010
-                    toBranch = (state.pstate.N == state.pstate.V);
+                case 6: // GT (greater) - 1100, LE (less or equal) - 1101
+                    toBranch = (!state.pstate.Z && (state.pstate.N == state.pstate.V)) ^ br.condInvert;
                     break;
-                case 11: // LT (less) - 1011
-                    toBranch = (state.pstate.N != state.pstate.V);
-                    break;
-                case 12: // GT (greater) - 1100
-                    toBranch = (!state.pstate.Z && (state.pstate.N == state.pstate.V));
-                    break;
-                case 13: // LE (less or equal) - 1101
-                    toBranch = (state.pstate.Z || (state.pstate.N != state.pstate.V));
-                    break;
-                case 14: // AL (always) - 1110
-                    toBranch = true;
+                case 7: // AL (always) - 1110
+                    toBranch = 1;
                     break;
                 default:
                     perror("Unsupported condition branch mnemonic.");
                     exit(EXIT_FAILURE);
-                    break;
             }
 
             if (toBranch) {

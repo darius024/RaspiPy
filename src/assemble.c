@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include "assemble.h"
 #include "disassembler.h"
 #include "utils.h"
+#include "vector.h"
 
 #define NUM_TOKENS 5
 #define SPACE " "
@@ -35,11 +35,13 @@ typedef struct
 
 FILE *outputFile;
 
-struct symbolTable symtable[MAX_INSTRS];
-int numLabel = 0;
+//struct symbolTable symtable[MAX_INSTRS];
+// symtable stores symbolTables as elements
+vector *symtable;
 
-struct labelMap unDefLables[MAX_INSTRS];
-int labelIdx = 0;
+//struct labelMap unDefLables[MAX_INSTRS];
+// unDefLables stores labelMaps as elements
+vector *unDefLables;
 
 enum type
 {
@@ -110,9 +112,17 @@ void updateSymbolTable(instruction *instr)
     {
         // Label Case - Update the symbol table, no update of PC
         *p = '\0';
-        strcpy(symtable[numLabel].label, instr->instrname);
-        symtable[numLabel++].address = PC * 4;
-    }
+		int address = PC * 4;
+		struct symbolTable *symtableEntry = (struct symbolTable *)malloc(sizeof(struct symbolTable));
+		strcpy(symtableEntry -> label, instr -> instrname);
+		symtableEntry -> address = address;
+		addToVector(symtable, symtableEntry);
+		// struct symbolTable *symtableEntry = (struct symbolTable *)getFromVector(symtable, numLabel++);
+        //strcpy(symtable[numLabel].label, instr->instrname);
+        // strcpy(symtableEntry -> label, instr->instrname);
+		//symtable[numLabel++].address = PC * 4;
+    	// symtableEntry -> address = PC * 4;
+	}
 }
 
 // Use strtok_r instead of strtok
@@ -266,7 +276,7 @@ void openBinaryFile(const char *filename)
 }
 
 int main(int argc, char **argv)
-{
+{	
     char *inputFilename;
     char *outputFilename;
     if (argc >= 3)
@@ -279,6 +289,9 @@ int main(int argc, char **argv)
         fprintf(stderr, "Provide both an input and an output file.\n");
         return EXIT_FAILURE;
     }
+	// Initializing symtable, unDefLables
+	symtable = initializeVector(MAX_INSTRS, sizeof(struct symbolTable));
+	unDefLables = initializeVector(MAX_INSTRS, sizeof(struct labelMap));
 
     instruction *instr = initializeStruct();
 
@@ -292,8 +305,11 @@ int main(int argc, char **argv)
     handleUnDefLabels(outputFile);
 
     freeStruct(instr);
+	
+	freeVector(symtable);
+   	freeVector(unDefLables);
 
-    // Close output file
+	// Close output file
     fclose(outputFile);
 
     return EXIT_SUCCESS;

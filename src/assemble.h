@@ -1,6 +1,8 @@
-#include <stdint.h>
 #ifndef ASSEMBLE_H
 #define ASSEMBLE_H
+
+#include <stdint.h>
+#include "vector.h"
 
 #define MAX_TOKEN_LENGTH 20
 #define MAX_INSTRS 200
@@ -28,10 +30,10 @@ struct labelMap {
 };
 
 
-extern struct labelMap unDefLables[MAX_INSTRS];
-extern int labelIdx;
+//extern struct labelMap unDefLables[MAX_INSTRS];
+extern vector *unDefLables;
 
-extern struct symbolTable symtable[MAX_INSTRS];
-extern int numLabel;
+//extern struct symbolTabl symtable[MAX_INSTRS]
+extern vector *symtable;
 
 #endif

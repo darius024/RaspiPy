@@ -4,9 +4,6 @@
 #include <stdbool.h>
 #include "assemble.h"
 
-// extern struct symbolTable symtable[MAX_INSTRS];
-// extern int numLabel = 0;
-
 // Utility Tools For Assembler
 
 static const char *shifts[] = {
@@ -60,11 +57,16 @@ int getLiteral(char *literal)
     if (*literal == '#')
         return atoi(literal + 1);
     // Find the address of the label in the symbol table
-    for (int i = 0; i < numLabel; i++)
+    for (int i = 0; i < symtable -> currentSize; i++)
     {
-        if (!strcmp(literal, symtable[i].label))
-            return symtable[i].address;
-    }
+		struct symbolTable *symtableEntry = getFromVector(symtable, i);
+		printf("%ld\n", symtable -> currentSize);
+        //if (!strcmp(literal, symtable[i].label))
+        //    return symtable[i].address;
+    	if (!strcmp(literal, symtableEntry -> label)) {
+			return symtableEntry -> address;
+		}
+	}
     // Label not found
     return -1; 
 }

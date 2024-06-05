@@ -31,26 +31,39 @@ static void disassembleAliases(char *instrname, char **tokens, int numTokens, FI
 
 static void updateLabelMap(FILE *outputFile, unDefTypes type, uint32_t instr, char *labelName)
 {
-    unDefLables[labelIdx].offset = ftell(outputFile);
-    unDefLables[labelIdx].type = type;
-    unDefLables[labelIdx].instr = instr;
-    strcpy(unDefLables[labelIdx++].label, labelName);
+    //unDefLables[labelIdx].offset = ftell(outputFile);
+    //unDefLables[labelIdx].type = type;
+    //unDefLables[labelIdx].instr = instr;
+    //strcpy(unDefLables[labelIdx++].label, labelName);
+	struct labelMap *newEntry = (struct labelMap *)malloc(sizeof(struct labelMap));
+	newEntry -> offset = ftell(outputFile);
+	newEntry -> type = type;
+	newEntry -> instr = instr;
+	strcpy(newEntry -> label, labelName);
+	addToVector(unDefLables, newEntry);
 }
 
 static void handleUnDefLabel(FILE *outputFile, int idx)
 {
-    uint32_t PC = unDefLables[idx].offset;
+	struct labelMap *entry = (struct labelMap *)getFromVector(unDefLables, idx);
+    //uint32_t PC = unDefLables[idx].offset;
+	uint32_t PC = entry -> offset;
 
-    fseek(outputFile, unDefLables[idx].offset, SEEK_SET);
-    int literal = getLiteral(unDefLables[idx].label);
+    //fseek(outputFile, unDefLables[idx].offset, SEEK_SET);
+    //int literal = getLiteral(unDefLables[idx].label);
 
-    uint32_t instruction = unDefLables[idx].instr;
+	fseek(outputFile, entry -> offset, SEEK_SET);
+    int literal = getLiteral(entry -> label);
+
+    //uint32_t instruction = unDefLables[idx].instr;
+	uint32_t instruction = entry -> instr;
 
     int offset = (literal - PC) >> 2;
     printf("lit: %d pc: %d", literal, PC);
 
-    switch (unDefLables[idx].type)
-    {
+    //switch (unDefLables[idx].type)
+    switch (entry -> type)
+	{
     case ll:
     case bc:
         instruction |= (offset << 5) & maskBetweenBits(23, 5);
@@ -66,7 +79,7 @@ static void handleUnDefLabel(FILE *outputFile, int idx)
 
 void handleUnDefLabels(FILE *outputFile)
 {
-    for (int i = 0; i < labelIdx; i++)
+    for (int i = 0; i < unDefLables -> currentSize; i++)
     {
         handleUnDefLabel(outputFile, i);
     }

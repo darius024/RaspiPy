@@ -96,6 +96,25 @@ instruction *initializeStruct()
     return instr;
 }
 
+static Decoded *allocateDecoded() 
+{
+    Decoded *decoded = (Decoded *)malloc(sizeof(Decoded));
+
+    if (decoded == NULL) 
+    {
+        perror("Failed to allocate space for Decoded struct");
+        exit(EXIT_FAILURE);
+    }
+
+    return decoded;
+}
+
+static void freeDecoded(Decoded *decoded) 
+{
+    free(decoded);
+}
+
+
 void freeStruct(instruction *instr)
 {
     for (int i = 0; i < NUM_TOKENS; i++)
@@ -189,6 +208,8 @@ enum type identifyType(char *instrname)
 
 void disassembleRouter(instruction *instr)
 {
+    Decoded *decoded = allocateDecoded(); 
+
     // Sends instruction to corresponding disassembler
     int numTokens;
     // Construct the instrname and tokens array
@@ -207,13 +228,13 @@ void disassembleRouter(instruction *instr)
         disassembleB(instr->instrname, instr->tokens[0], outputFile, PC);
         break;
     case ls:
-        disassembleLS(instr->instrname, instr->tokens, numTokens, outputFile, PC);
+        disassembleSDT(instr->instrname, instr->tokens, numTokens, decoded, outputFile, PC);
         break;
     case nop:
         fwrite(&nopInstr, sizeof(int), 1, outputFile);
         break;
     case dp:
-        disassembleDP(instr->instrname, instr->tokens, numTokens, outputFile);
+        disassembleDPR(instr->instrname, instr->tokens, numTokens, decoded);
         break;
     default:
         // Shouldn't reach here
@@ -221,6 +242,8 @@ void disassembleRouter(instruction *instr)
     }
     // Update PC
     PC++;
+
+    freeDecoded(decoded);
 }
 
 void loadAssemblyFile(const char *filename, instruction *instr)

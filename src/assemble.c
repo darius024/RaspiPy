@@ -6,7 +6,6 @@
 #include "utils.h"
 #include "vector.h"
 
-#define NUM_TOKENS 5
 #define SPACE " "
 #define SPACECOMMA ", "
 #define OPCODE 0
@@ -225,7 +224,7 @@ void disassembleRouter(instruction *instr)
         disassembleDir(instr->tokens[0], outputFile);
         break;
     case b:
-        disassembleB(instr->instrname, instr->tokens[0], outputFile, PC);
+        disassembleB(instr->instrname, instr->tokens[0], decoded, outputFile, PC);
         break;
     case ls:
         disassembleSDT(instr->instrname, instr->tokens, numTokens, decoded, outputFile, PC);

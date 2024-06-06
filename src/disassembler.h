@@ -14,6 +14,7 @@
 #define SIZE_DPR (sizeof(dprOnes) / sizeof(int))
 #define SIZE_LS (sizeof(lsOnes) / sizeof(int))
 #define SIZE_SDT (sizeof(sdtOnes) / sizeof(int))
+#define SIZE_B (sizeof(bOnes) / sizeof(int))
 
 
 
@@ -150,7 +151,7 @@ extern void disassembleDPR(char *instrname, char **tokens, int numTokens, Decode
 
 extern void disassembleSDT(char *instrname, char **tokens, int numTokens, Decoded *instr, FILE *outputFile, int PC);
 
-extern void disassembleB(char *instrname, char *token, FILE *outputFile, int PC);
+extern void disassembleB(char *instrname, char *token, Decoded *instr, FILE *outputFile, int PC);
 
 extern void disassembleDir(char *dir, FILE *outputFile);
 

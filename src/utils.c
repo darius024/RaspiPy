@@ -56,8 +56,8 @@ int getOperand(char *op, bool *rOrImm)
 int getLiteral(char *literal)
 {
     // Check for immediate value
-    if (*literal == '#')
-        return atoi(literal + 1);
+    // if (*literal == '#')
+    //     return atoi(literal + 1);
     // Find the address of the label in the symbol table
     for (int i = 0; i < symtable -> currentSize; i++)
     {
@@ -104,11 +104,11 @@ opType getOpType(char **tokens, int numTokens) {
 
 // Shifts all tokens from a position, inserting new token at new vacancy
 void insertNewToken(char **tokens, char *insertingToken, int numTokens, int index) {
-    assert(numTokens < NUM_TOKENS);
+    assert(numTokens <  NUM_TOKENS);
     for (int i = NUM_TOKENS ; i > index ; i--) {
         tokens[i] = tokens[i-1];
     }
-    char *newToken = (char *)malloc((MAX_TOKEN_LENGTH + 1) * sizeof(char))
+    char *newToken = (char *)malloc((MAX_TOKEN_LENGTH + 1) * sizeof(char));
     strcpy(newToken, insertingToken);
     tokens[index] = newToken;
 }

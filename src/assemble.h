@@ -6,6 +6,7 @@
 
 #define MAX_TOKEN_LENGTH 20
 #define MAX_INSTRS 200
+#define NUM_TOKENS 5
 
 // #define SIZE_ALIASES (sizeof(aliases) / sizeof(char *))
 // #define SIZE_WIDEMOVES (sizeof(wideMoves) / sizeof(char *))

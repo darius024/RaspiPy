@@ -30,7 +30,7 @@ static const int dpiOnes[] = {28};
 static const int dprOnes[] = {25, 27};
 static const int lsOnes[] = {27, 28};
 static const int sdtOnes[] = {29};
-// static const int bOnes[] = {26, 28};
+static const int bOnes[] = {26, 28};
 
 
 // Function Prototype
@@ -670,15 +670,28 @@ void disassembleSDT(char *instrname, char **tokens, int numTokens, Decoded *inst
 }
 
 // 2.3.3 Branching Instructions
-void disassembleB(char *instrname, char *token, FILE *outputFile, int PC)
+void disassembleB(char *instrname, char *token, Decoded *instr, FILE *outputFile, int PC)
 {
+    uint32_t instruction = instr->instruction;
+    
     // Start with xx0101xxxx...
-    int instruction = (1 << 28) + (1 << 26);
+    //int instruction = (1 << 28) + (1 << 26);
+    setOnes(&instruction, bOnes, SIZE_B);
 
+    B *branch = &instr->br; 
     // Unconditional
     if (!strcmp(instrname, "b"))
     {
+        //type uncondition = 0
+        branch->type = 0;
         // Set simm26
+        // Check for immediate value
+        if (*token == '#') 
+        {
+            branch->simm26 = getImmediate(token);
+            return;
+        }
+
         int literal = getLiteral(token);
         if (literal == -1)
         {
@@ -687,19 +700,29 @@ void disassembleB(char *instrname, char *token, FILE *outputFile, int PC)
             return;
         }
         int offset = (literal - PC * 4) >> 2;
+        branch->simm26 = offset;
+
         instruction |= offset & maskBetweenBits(25, 0);
     }
     // Register
     else if (!strcmp(instrname, "br"))
     {
+        //register type = 3
+        branch->type = 3;
         // Set 1s in the right places
         instruction |= (1 << 31) + (1 << 30) + (1 << 25) + maskBetweenBits(20, 16);
+
+
         // Set xn
+        branch->xn = getRegister(token);
         instruction |= getRegister(token) << 5;
     }
     // Conditional
     else
     {
+        //conditional type = 1
+        branch->type = 1; 
+
         // Set 1s in the right places
         instruction |= 1 << 30;
 
@@ -708,12 +731,17 @@ void disassembleB(char *instrname, char *token, FILE *outputFile, int PC)
         switch (*p)
         {
         case 'e': // eq - 0000
+            branch->cond = 0;
             break;
         case 'n': // ne - 0001
             instruction |= 1;
+            branch->cond = 1;
             break;
         case 'g': // ge - 1010 and gt - 1100
             instruction |= (*(p + 1) == 'e')
+                               ? 10
+                               : 12;
+            branch->cond = (*(p + 1) == 'e')
                                ? 10
                                : 12;
             break;
@@ -721,15 +749,26 @@ void disassembleB(char *instrname, char *token, FILE *outputFile, int PC)
             instruction |= (*(p + 1) == 't')
                                ? 11
                                : 13;
+            branch->cond = (*(p + 1) == 'e')
+                               ? 10
+                               : 12;
             break;
         case 'a': // al - 1110
             instruction |= 14;
+            branch->cond = 14;
             break;
         default:
             // Can't reach here
             break;
         }
         // Set simm19
+
+        if (*token == '#') 
+        {
+            branch->simm19 = getImmediate(token);
+            return;
+        }
+
         int literal = getLiteral(token);
         if (literal == -1)
         {
@@ -737,7 +776,9 @@ void disassembleB(char *instrname, char *token, FILE *outputFile, int PC)
             fwrite(&instruction, sizeof(int), 1, outputFile); // will be overwritten
             return;
         }
+
         int offset = (literal - PC * 4) >> 2;
+        branch->simm19 = offset;
         instruction |= (offset << 5) & maskBetweenBits(23, 5);
     }
     // instr[PC++] = instruction;

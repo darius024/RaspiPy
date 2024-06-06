@@ -7,6 +7,15 @@
 #define MAX_TOKEN_LENGTH 20
 #define MAX_INSTRS 200
 
+// #define SIZE_ALIASES (sizeof(aliases) / sizeof(char *))
+// #define SIZE_WIDEMOVES (sizeof(wideMoves) / sizeof(char *))
+// #define SIZE_ARITHMETICS (sizeof(arithmetics) / sizeof(char *))
+// #define SIZE_LOGICAL (sizeof(logical) / sizeof(char *))
+// #define SIZE_MULTIPLY (sizeof(multiply) / sizeof(char *))
+
+// #define SIZE_DPI (sizeof(dpiOnes) / sizeof(int))
+// #define SIZE_DPR (sizeof(dprOnes) / sizeof(int))
+
 struct symbolTable
 {
     char label[MAX_TOKEN_LENGTH];

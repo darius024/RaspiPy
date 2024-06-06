@@ -2,7 +2,12 @@
 #define UTILS_H
 
 #include <stdbool.h>
-// #include "assemble.h"
+
+// Type declarations
+typedef enum {
+    regOp,
+    immOp
+} opType;
 
 // Function Prototypes
 extern int getMode(char *rd);
@@ -20,5 +25,7 @@ extern int getLiteral(char *literal);
 extern int getShift(char *shift);
 
 extern int maskBetweenBits(int upp, int low);
+
+extern opType getOpType(char **tokens, int numTokens);
 
 #endif

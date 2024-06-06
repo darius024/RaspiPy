@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <assert.h>
 #include "assemble.h"
+#include "utils.h"
 
 // Utility Tools For Assembler
 
@@ -88,4 +90,25 @@ int getShift(char *shift)
 int maskBetweenBits(int upp, int low)
 {
     return ((1 << (upp + 1)) - 1) ^ ((1 << low) - 1);
+}
+
+// Checks if operation includes an immediate value or register for operand
+opType getOpType(char **tokens, int numTokens) {
+    for (int i = 0 ; i < numTokens ; i++){
+        if (*tokens[i] == '#') {
+            return immOp;
+        }
+    }
+    return regOp;
+}
+
+// Shifts all tokens from a position, inserting new token at new vacancy
+void insertNewToken(char **tokens, char *insertingToken, int numTokens, int index) {
+    assert(numTokens < NUM_TOKENS);
+    for (int i = NUM_TOKENS ; i > index ; i--) {
+        tokens[i] = tokens[i-1];
+    }
+    char *newToken = (char *)malloc((MAX_TOKEN_LENGTH + 1) * sizeof(char))
+    strcpy(newToken, insertingToken);
+    tokens[index] = newToken;
 }

@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include "instruction.h"
+#include "emulate.h"
 
 #define MEMORY_SIZE (2 * 1024 * 1024) // 2MB
 #define INSTR_BYTES 4
@@ -332,15 +334,9 @@ void updateFlagsArithmetic(int64_t a, int64_t b, bool sf, bool isAdd) {
                                  : ((((int32_t)a > 0) != ((int32_t)b > 0)) && (((int32_t)res > 0) == ((int32_t)b > 0))));
 }
 
-void executeDPImm(Instruction instruction) {
+int executeDPImm(Instruction instruction) {
     struct DPI dpimm = instruction.dpimm;
     int64_t *Rd = (dpimm.rd == ZR_SP) ? &state.SP : &state.R[dpimm.rd];
-
-    fprintf(stderr, "dpimm fields\n");
-    fprintf(stderr, "sf: %d\n", dpimm.sf);
-    fprintf(stderr, "opc: %d\n", dpimm.opc);
-    fprintf(stderr, "opi: %d\n", dpimm.opi);
-    fprintf(stderr, "rd: %d\n", dpimm.rd);
 
     switch (dpimm.opi) {
         case 2: { // Arithmetic
@@ -368,19 +364,19 @@ void executeDPImm(Instruction instruction) {
                     break;
                 }
                 default:
-                    perror("Unsupported Wide Move type.\n");
-                    exit(EXIT_FAILURE);
-                break;
+                    perror("Unsupported wide move type (bits 29-30), use either 00, 10 or 11.\n");
+                    return 1;
             }
             break;
         }
         default: {
-            perror("Only arithmetic (010) and wide move (101) are supported.\n");
-            exit(EXIT_FAILURE);
+            perror("Unsupported opi (bits 23-25), use either 010 or 101.\n");
+            return 1;
         }
     }
 
     maskTo32Bits(dpimm.sf, Rd);
+    return 0;
 }
 
 // 1.5 Data Processing Instruction (Register)
@@ -422,34 +418,24 @@ void updateFlagsAnd(int64_t a, int64_t b, bool sf) {
     state.pstate.V = 0;
 }
 
-void executeDPR(Instruction instruction) {
+int executeDPR(Instruction instruction) {
     struct DPR dpr = instruction.dpr;
-
     int64_t *Rd = &state.R[dpr.rd];
     int64_t Rm = state.R[dpr.rm];
     int64_t Rn = state.R[dpr.rn];
 
-    maskTo32Bits(dpr.sf, Rd);
     maskTo32Bits(dpr.sf, &Rm);
     maskTo32Bits(dpr.sf, &Rn);
-
-    fprintf(stderr, "dpr fields\n");
-    fprintf(stderr, "sf: %d\n", dpr.sf);
-    fprintf(stderr, "m: %d\n", dpr.m);
-    fprintf(stderr, "rm: %d\n", dpr.rm);
-    fprintf(stderr, "operand: %d\n", dpr.operand);
-    fprintf(stderr, "rn: %d\n", dpr.rn);
-    fprintf(stderr, "rd: %d\n", dpr.rd);
 
     if (dpr.m == 0) {
         // Compute offset
         int64_t op2 = shift(Rm, dpr.operand, dpr.shift, dpr.sf);
 
-        if (dpr.armOrLog) { // Arithmetic
+        if (dpr.armOrLog == 1) { // Arithmetic
             addOrSub(dpr.opc, dpr.rd, dpr.sf, Rd, Rn, op2);
         } else { // Logical
             // Simulate execution considering the opc
-            if (dpr.n) {
+            if (dpr.n == 1) {
                 op2 = ~op2;
             }
             switch (dpr.opc) {
@@ -480,12 +466,13 @@ void executeDPR(Instruction instruction) {
     }
 
     maskTo32Bits(dpr.sf, Rd);
+    return 0;
 }
 
 // 1.6 Bitwise Shifts
 
 int64_t shift(int64_t value, int8_t amount, uint8_t mode, bool nobits) {
-    amount %= (!nobits) ? 32 : 64;
+    amount %= (!nobits) ? MODE32 : MODE64;
 
     int32_t value32 = value & MASK32;
 
@@ -503,8 +490,8 @@ int64_t shift(int64_t value, int8_t amount, uint8_t mode, bool nobits) {
                             : value >> amount;
             break;
         case 3: { // Rotate Right (ror)
-            uint8_t rotateAmount = (!nobits) ? 32 - amount
-                                            : 64 - amount;
+            uint8_t rotateAmount = (!nobits) ? MODE32 - amount
+                                            : MODE64 - amount;
             int64_t bitsToRotate = value << rotateAmount;
 
             return (!nobits) ? (((uint32_t)value32 >> amount) | bitsToRotate) & MASK32
@@ -512,7 +499,7 @@ int64_t shift(int64_t value, int8_t amount, uint8_t mode, bool nobits) {
             break;
         }
         default:
-            perror("Unsupported shift mode. Provide a mode between 0 and 3.");
+            perror("Unsupported shift mode. Provide a mode between 0 and 3.\n");
             exit(EXIT_FAILURE);
     }
 }
@@ -537,9 +524,7 @@ int decodeSDT(uint32_t instr, Instruction *instruction, BitFunc bitFunc) {
             bitFunc(instr, &(sdt->imm12), 10, 12);
         } else if (sdt->offmode == 0) { // Pre/Post - Index
             bitFunc(instr, &(sdt->simm9), 12, 9);
-            fprintf(stderr, "before sign extension simm9: %d\n", sdt->simm9);
             signExtendTo32Bits(&(sdt->simm9), 9);
-            fprintf(stderr, "after sign extension simm9: %d\n", sdt->simm9);
             bitFunc(instr, &(sdt->i), 11, 1);
         } else { // Register Offset
             bitFunc(instr, &(sdt->xm), 16, 5);
@@ -573,7 +558,7 @@ void storeToMemory(int addr, int64_t reg, bool mode) {
     // This is also transofrmed from little endian
 }
 
-void executeSDT(Instruction instruction) {
+int executeSDT(Instruction instruction) {
     struct SDT sdt = instruction.sdt;
 
     // Although xn is 64 bits, addresses can only be 21 bits, so trim to int.
@@ -593,7 +578,6 @@ void executeSDT(Instruction instruction) {
         } else if (sdt.offmode == 0) { // Pre/Post - Index
             targetAddress += (sdt.i) ? sdt.simm9 : 0;
             *Xn += (int64_t)sdt.simm9;
-            fprintf(stderr, "execution simm9: %d", sdt.simm9);
         } else { // Register Offset
             int64_t *Xm = (sdt.xn == ZR_SP) ? &state.SP : &state.R[sdt.xm];
             targetAddress += *Xm;
@@ -612,6 +596,8 @@ void executeSDT(Instruction instruction) {
         // Simulate the Data Transfer
         loadFromMemory(targetAddress, &state.R[sdt.rt], sdt.sf);
     }
+
+    return 0;
 }
 
 // 1.8 Branch Instructions
@@ -638,24 +624,15 @@ int decodeB(uint32_t instr, Instruction *instruction, BitFunc bitFunc) {
             bitFunc(instr, &(br->xn), 5, 5);
             break;
         default:
-            perror("Unsupported branch type (bits 30-31), use either 00, 01, or 11.\n");
+            perror("Unsupported branch type (bits 30-31), use either 00, 01 or 11.\n");
             return 1;
     }
 
     return 0;
 }
 
-void executeB(Instruction instruction) {
+int executeB(Instruction instruction) {
     struct Branch br = instruction.br;
-
-    fprintf(stderr, "branch fields\n");
-    fprintf(stderr, "sf: %d\n", br.type);
-    fprintf(stderr, "nop: %d\n", br.nop);
-    fprintf(stderr, "simm26: %d\n", br.simm26);
-    fprintf(stderr, "xn: %d\n", br.xn);
-    fprintf(stderr, "simm19: %d\n", br.simm19);
-    fprintf(stderr, "condTag: %d\n", br.condTag);
-    fprintf(stderr, "condInvert: %d\n", br.condInvert);
 
     switch (br.type) {
         case 0: // Unconditional
@@ -677,8 +654,8 @@ void executeB(Instruction instruction) {
                     toBranch = 1;
                     break;
                 default:
-                    perror("Unsupported condition branch mnemonic.");
-                    exit(EXIT_FAILURE);
+                    perror("Unsupported branch condition (bits 1-3), use either 000, 101, 110 or 111.\n");
+                    return 1;
             }
 
             state.PC += ((toBranch) ? (int64_t)br.simm19 : 1) * INSTR_BYTES;
@@ -692,10 +669,10 @@ void executeB(Instruction instruction) {
             }
             break;
         default:
-            perror("Not supported type of branching.\n");
-            exit(EXIT_FAILURE);
-            break;
+            perror("Unsupported branch type (bits 30-31), use either 00, 01 or 11.\n");
+            return 1;
     }
+    return 0;
 }
 
 //
@@ -724,29 +701,24 @@ int decode(uint32_t instr, Instruction *instruction, BitFunc bitFunc) {
     } else if (op0 / 2 == 5) { // 101x - Branch
         return decodeB(instr, instruction, bitFunc);
     } else { // invalid op0
-        perror("op0 (bits 25-28) is not valid");
+        perror("Unsupported op0 (bits 25-28), use either 100x, x101, x1x0 or 101x.\n");
         return 1;
     }
 }
 
-void execute(Instruction instruction) {
+int execute(Instruction instruction) {
     switch (instruction.instructionType) {
         case isDPI:
-            executeDPImm(instruction);
-            break;
+            return executeDPImm(instruction);
         case isDPR:
-            executeDPR(instruction);
-            break;
+            return executeDPR(instruction);
         case isSDT:
-            executeSDT(instruction);
-            break;
+            return executeSDT(instruction);
         case isBranch:
-            fprintf(stderr, "calling executeB");
-            executeB(instruction);
-            break;
+            return executeB(instruction);
         default:
             perror("Unsupported instruction type.\n");
-            exit(EXIT_FAILURE);
+            return 1;
     }
 }
 
@@ -776,7 +748,8 @@ int main(int argc, char **argv) {
     while ((instr = fetch(state.PC)) != HALT) {
         int decodeError = decode(instr, instruction, getBits);
         checkErrors(decodeError);
-        execute(*instruction);
+        int executeError = execute(*instruction);
+        checkErrors(executeError);
 
         // Update address of next instruction
         if (instruction->instructionType != isBranch) {

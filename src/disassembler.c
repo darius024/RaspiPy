@@ -30,337 +30,114 @@ static const int dpiOnes[] = {28};
 static const int dprOnes[] = {25, 27};
 static const int lsOnes[] = {27, 28};
 static const int sdtOnes[] = {29};
+static const int sdtRegOnes[] = {11, 13, 14};
 static const int bOnes[] = {26, 28};
 
 
 // Function Prototype
 //static void disassembleAliases(char *instrname, char **tokens, int numTokens, FILE *outputFile);
 
-static void updateLabelMap(FILE *outputFile, unDefTypes type, uint32_t instr, char *labelName)
+static void updateUndefTable(FILE *outputFile, undefType type, uint32_t instr, char *labelName)
 {
-	struct labelMap *newEntry = (struct labelMap *)malloc(sizeof(struct labelMap));
+	struct undefTable *newEntry = (struct undefTable *)malloc(sizeof(struct undefTable));
 	newEntry -> offset = ftell(outputFile);
 	newEntry -> type = type;
 	newEntry -> instr = instr;
 	strcpy(newEntry -> label, labelName);
-	addToVector(unDefLables, newEntry);
+	addToVector(undeftable, newEntry);
 }
 
-static void handleUnDefLabel(FILE *outputFile, int idx)
+static void handleUndefLabel(FILE *outputFile, int i)
 {
-	struct labelMap *entry = (struct labelMap *)getFromVector(unDefLables, idx);
-    //uint32_t PC = unDefLables[idx].offset;
-	uint32_t PC = entry -> offset;
+	struct undefTable *entry = (struct undefTable *)getFromVector(undeftable, i);
+	uint32_t PC = entry->offset;
+	uint32_t instruction = entry->instr;
 
-    //fseek(outputFile, unDefLables[idx].offset, SEEK_SET);
-    //int literal = getLiteral(unDefLables[idx].label);
-
-	fseek(outputFile, entry -> offset, SEEK_SET);
-    int literal = getLiteral(entry -> label);
-
-    //uint32_t instruction = unDefLables[idx].instr;
-	uint32_t instruction = entry -> instr;
-
+    int literal = getLiteral(entry->label);
     int offset = (literal - PC) >> 2;
-    printf("lit: %d pc: %d", literal, PC);
 
-    //switch (unDefLables[idx].type)
-    switch (entry -> type)
+    switch (entry->type)
 	{
-    case ll:
-    case bc:
-        instruction |= (offset << 5) & maskBetweenBits(23, 5);
+    case ll: // Load Literal
+    case bc: // Branch Conditional
+        putBits(&instruction, &offset, 5, 19);
         break;
-    case bu:
-        instruction |= offset & maskBetweenBits(25, 0);
-        break;
-    default:
+    case bu: // Branch Unconditional
+        putBits(&instruction, &offset, 0, 26);
         break;
     }
+    
+    // Write to output file
+    fseek(outputFile, entry->offset, SEEK_SET);
     fwrite(&instruction, sizeof(int), 1, outputFile);
 }
 
-//loops through vector to handle all the undefined lables
-void handleUnDefLabels(FILE *outputFile)
+// Iterates through vector to handle all the undefined lables
+void handleUndefTable(FILE *outputFile)
 {   
-    for (int i = 0; i < unDefLables -> currentSize; i++)
-    {
-        handleUnDefLabel(outputFile, i);
+    for (int i = 0; i < undeftable->currentSize; i++) {
+        handleUndefLabel(outputFile, i);
     }
 }
-//go through array till you find index of word in array or return if not -1
-int getPositionInArray(char *word,const char **words, int num)
+
+int getPositionInArray(char *word, const char **words, int num)
 {
-    for (int i = 0; i < num; i++)
-    {
-        if (strcasecmp(word, words[i]) == 0)
-        {
+    for (int i = 0; i < num; i++) {
+        if (strcasecmp(word, words[i]) == 0) {
             return i;
         }
     }
     return -1;
 }
 
-bool checkWordInArray(char *word,const char **words, int num)
+bool checkWordInArray(char *word, const char **words, int num)
 {
     return (getPositionInArray(word, words, num) != -1);
 }
 
-//check if the instruction name is an 
 bool checkForAliases(char *instrname)
 {
     return checkWordInArray(instrname, aliases, SIZE_ALIASES);
 }
 
-void setOnes(uint32_t *instruction,const int *bits, int num)
+void setOnes(uint32_t *instruction, const int *bits, int num)
 {
-    for (int i = 0; i < num; i++)
-    {
+    for (int i = 0; i < num; i++) {
         *instruction |= 1 << bits[i];
     }
 }
 
-// puts 1s from start to start + n bits
-void putBits(uint32_t *x, void *val, int start, int nbits)
+bool hasOpenBracket(char *token) {
+    return (strchr(token, '[') != NULL);
+}
+
+void putBits(uint32_t *instr, void *value, int start, int nbits)
 {
     uint32_t mask = ((1 << nbits) - 1);
-
-    // Check for type of *val
-    if (nbits == 1)
-    {
-        *x |= (*(bool *)val & mask) << start;
-    }
-    else if (nbits <= 8)
-    {
-        *x |= (*(uint8_t *)val & mask) << start;
-    }
-    else if (nbits <= 16)
-    {
-        *x |= (*(uint16_t *)val & mask) << start;
-    }
-    else
-    {
-        *x |= (*(uint32_t *)val & mask) << start;
+    if (nbits == 1) {
+        *instr |= (*(bool *)value & mask) << start;
+    } else if (nbits <= 8) {
+        *instr |= (*(uint8_t *)value & mask) << start;
+    } else if (nbits <= 16) {
+        *instr |= (*(uint16_t *)value & mask) << start;
+    } else {
+        *instr |= (*(uint32_t *)value & mask) << start;
     }
 }
 
-
-
-
-// 2.3.1 Data Processing Instructions
-// void disassembleDP(char *instrname, char **tokens, int numTokens, FILE *outputFile)
-// {
-//     // Start with xxxx...
-//     int instruction = 0;
-
-//     // Set sf
-//     instruction |= getMode(tokens[0]) << 31;
-
-//     // Broke down depending on the opcode
-
-//     // Multiply - <mul_opcode> rd, rn, rm, ra
-//     // Check that 4th token is a register
-//     if (numTokens == 4 && strchr(tokens[3], '#') == NULL)
-//     {
-//         // tokens: 0 - rd, 1 - rn, 2 - rm, 3 - ra
-
-//         // Set 1s
-//         instruction |= (1 << 28) + (1 << 27) + (1 << 25) + (1 << 24);
-//         // Set rm
-//         instruction |= getRegister(tokens[2]) << 16;
-//         // Set x: 0 - madd, 1 - msub
-//         instruction |= !strcmp(instrname, "msub") << 15;
-//         // Set ra
-//         instruction |= getRegister(tokens[3]) << 10;
-//         // Set rn
-//         instruction |= getRegister(tokens[1]) << 5;
-//         // Set rd
-//         instruction |= getRegister(tokens[0]);
-
-//         // instr[PC++] = instruction;
-//         fwrite(&instruction, sizeof(int), 1, outputFile);
-//         return;
-//     }
-
-//     // Two operands, no destination - <opcode> rn, <operand> - cmp, cmn, tst
-//     bool isTwoOpNoDest = 0;
-//     for (int i = 0; i < 3; i++)
-//     {
-//         if (!strcmp(instrname, twoOperandNoDest[i]))
-//             isTwoOpNoDest = 1;
-//     }
-//     if (isTwoOpNoDest)
-//     {
-//         // These are all aliases
-//         disassembleAliases(instrname, tokens, numTokens, outputFile);
-//         return;
-//     }
-
-//     // Single operand - <opcode> rd, <operand> - mov, mul, mneg, neg(s), mvn, wide-moves
-//     short isSingleOperand = -1;
-//     for (int i = 0; i < 9; i++)
-//     {
-//         if (!strcmp(instrname, singleOperand[i]))
-//             isSingleOperand = i;
-//     }
-//     if (isSingleOperand != -1)
-//     {
-//         if (isSingleOperand < 6)
-//         {
-//             // These are all aliases
-//             disassembleAliases(instrname, tokens, numTokens, outputFile);
-//             return;
-//         }
-//         else
-//         {
-//             // These are wide moves
-
-//             // Set 1s
-//             instruction |= 1 << 28;
-//             // Set rd
-//             instruction |= getRegister(tokens[0]);
-//             // Set opi = 101
-//             instruction |= (1 << 25) + (1 << 23);
-//             // Set imm16
-//             instruction |= getImmediate(tokens[1]) << 5;
-//             // Set hw
-//             if (numTokens > 2) // lsl #<imm> case
-//                 instruction |= (getImmediate(tokens[3]) / 16) << 21;
-//             // else hw = 0
-
-//             // Set opc
-//             // Cases: movn, movk, movz
-//             if (strcmp(instrname, "movn") != 0) // movz, movk cases
-//             {
-//                 // Set opc to 10
-//                 instruction |= 1 << 30;
-//                 if (strcmp(instrname, "movk") == 0)
-//                     instruction |= 1 << 29;
-//             }
-//             // instr[PC++] = instruction;
-//             fwrite(&instruction, sizeof(int), 1, outputFile);
-//             return;
-//         }
-//     }
-
-//     // Two operand - <opcode> rd, rn, <operand> - arithmetic, bit-wise
-//     if (!strcmp(instrname, "mul") || !strcmp(instrname, "mneg"))
-//     {
-//         // These are aliases
-//         disassembleAliases(instrname, tokens, numTokens, outputFile);
-//         return;
-//     }
-
-//     // Next:  add, adds, sub, subs (imm + reg)
-//     // Next:  and, ands, bic, bics, eor, orr, eon, orn (reg)
-
-//     // Common features for both immediate and register
-//     // Set rd
-//     instruction |= getRegister(tokens[0]);
-//     // Set rn
-//     instruction |= getRegister(tokens[1]) << 5;
-
-//     // Get imm or rd
-//     bool rOrImm;
-//     int rOrImmValue = getOperand(tokens[2], &rOrImm);
-//     // Check for <shift> #<imm>
-//     int shiftType = 0;
-//     int shiftValue = 0;
-//     if (numTokens > 3) // shift exists case
-//     {
-//         shiftType = getShift(tokens[3]);
-//         shiftValue = getImmediate(tokens[4]);
-//     }
-
-//     // Specific features for immediate and register
-//     if (rOrImm)
-//     {
-//         // Immediate Case - Arithmetic only
-
-//         // Set 1s
-//         instruction |= 1 << 28;
-//         // Set opi = 010
-//         instruction |= 1 << 24;
-//         // Set imm12
-//         instruction |= rOrImmValue << 10;
-//         // Set sh - is 1 when we shift by 12
-//         instruction |= (shiftValue == 12) << 22;
-//         // Set opc
-//         for (int opc = 0; opc < 4; opc++)
-//         {
-//             if (!strcmp(instrname, arithmetics[opc]))
-//                 instruction |= opc << 29;
-//         }
-//     }
-//     else
-//     {
-//         // Register Case - Arithmetic + Logic
-
-//         // Set 1s
-//         instruction |= (1 << 27) + (1 << 25);
-//         // Set rm
-//         instruction |= getRegister(tokens[2]) << 16;
-
-//         // arithmetic - 1, logic - 0
-//         bool arithmOrLogic = false;
-//         for (int opc = 0; opc < 4; opc++)
-//         {
-//             if (!strcmp(instrname, arithmetics[opc]))
-//             {
-//                 instruction |= opc << 29;
-//                 arithmOrLogic = true;
-//             }
-//         }
-
-//         // General for both arithmetic and logical
-//         // Set opr
-//         instruction |= arithmOrLogic << 24;
-//         instruction |= shiftType << 22;
-//         // Set operand
-//         instruction |= shiftValue << 10;
-
-//         // Arithmetic done
-//         // Specific for logical
-//         if (!arithmOrLogic)
-//         {
-//             // Set opc, N
-//             for (int opc = 0; opc < 8; opc++)
-//             {
-//                 if (!strcmp(instrname, logical[opc]))
-//                 {
-//                     // opc = 00, 01, 10, 11
-//                     instruction |= (opc / 2) << 29;
-//                     // N = 0 or 1
-//                     instruction |= (opc % 2) << 21;
-//                 }
-//             }
-//         }
-//     }
-
-//     // instr[PC++] = instruction;
-//     fwrite(&instruction, sizeof(int), 1, outputFile);
-// }
-
-void disassembleDPI(char *instrname, char **tokens, int numTokens, Decoded *instr)
+void disassembleDPI(char *instrname, char **tokens, int numTokens, Instruction *instruction)
 {
-    DPI *dpi = &(instr->dpimm);
+    DPI *dpi = &(instruction->dpi);
 
-    // Set 1s
-    setOnes(&(instr->instruction), dpiOnes, SIZE_DPI);
     // Set sf
     dpi->sf = getMode(tokens[0]);
     // Set rd
     dpi->rd = getRegister(tokens[0]);
 
-
-    // Arithmetics
-    //position in arithmetic array if not there -1
-    int arithPos = getPositionInArray(instrname, arithmetics, SIZE_ARITHMETICS);
-
-    if (arithPos + 1)
-    {
+    int arithmPos = getPositionInArray(instrname, arithmetics, SIZE_ARITHMETICS);
+    if (arithmPos + 1) { // Arithmetics
         // Set opc
-        dpi->opc = arithPos;
+        dpi->opc = arithmPos;
         // Set opi
         dpi->opi = 2;
         // Set rn
@@ -369,10 +146,7 @@ void disassembleDPI(char *instrname, char **tokens, int numTokens, Decoded *inst
         dpi->imm12 = getImmediate(tokens[2]);
         // Set sh
         dpi->sh = (numTokens > 3) ? (getImmediate(tokens[4]) / 12) : 0;
-    }
-    // Wide Moves
-    else
-    {
+    } else { // Wide Moves
         // Set opc
         dpi->opc = getPositionInArray(instrname, wideMoves, SIZE_WIDEMOVES);
         // Set opi
@@ -384,12 +158,10 @@ void disassembleDPI(char *instrname, char **tokens, int numTokens, Decoded *inst
     }
 }
 
-void disassembleDPR(char *instrname, char **tokens, int numTokens, Decoded *instr)
+void disassembleDPR(char *instrname, char **tokens, int numTokens, Instruction *instruction)
 {
-    DPR *dpr = &(instr->dpr);
+    DPR *dpr = &(instruction->dpr);
 
-    // Set 1s
-    setOnes(&(instr->instruction), dprOnes, SIZE_DPR);
     // Set sf
     dpr->sf = getMode(tokens[0]);
     // Set rm
@@ -399,11 +171,8 @@ void disassembleDPR(char *instrname, char **tokens, int numTokens, Decoded *inst
     // Set rd
     dpr->rd = getRegister(tokens[0]);
 
-    // Multiply
     int mulPos = getPositionInArray(instrname, multiply, SIZE_MULTIPLY);
-
-    if (mulPos + 1)
-    {
+    if (mulPos + 1) { // Multiply
         // Set m
         dpr->m = 1;
         // Set opr
@@ -416,7 +185,6 @@ void disassembleDPR(char *instrname, char **tokens, int numTokens, Decoded *inst
     }
 
     // Arithmetic / Bit-logic
-
     // Set m
     dpr->m = 0;
     // Set shift
@@ -424,21 +192,15 @@ void disassembleDPR(char *instrname, char **tokens, int numTokens, Decoded *inst
     // Set operand
     dpr->operand = (numTokens > 3) ? getImmediate(tokens[4]) : 0;
 
-    // Arithmetic
-    int arithPos =  getPositionInArray(instrname, arithmetics, SIZE_ARITHMETICS);
-
-    if (arithPos + 1)
-    {
+    int arithmPos =  getPositionInArray(instrname, arithmetics, SIZE_ARITHMETICS);
+    if (arithmPos + 1) { // Arithmetic
         // Set opc
-        dpr->opc = arithPos;
+        dpr->opc = arithmPos;
         // Set armOrLog
         dpr->armOrLog = 1;
         // Set n
         dpr->n = 0;
-    }
-    // Logical
-    else
-    {
+    } else { // Logical
         // Set opc
         dpr->opc = getPositionInArray(instrname, logical, SIZE_LOGICAL) / 2;
         // Set armOrLog
@@ -451,7 +213,7 @@ void disassembleDPR(char *instrname, char **tokens, int numTokens, Decoded *inst
 
 // Assemble aliases
 // Static because we don't call it explicitly
-// static void disassembleAliases(char *instrname, char **tokens, int numTokens, Decoded *decoded)
+// static void disassembleAliases(char *instrname, char **tokens, int numTokens, Instruction *decoded)
 // {
 //     // 9 cases
 //     // 0 - mov, 1 - cmn, 2(3) - neg(s), 4 - tst,
@@ -533,261 +295,139 @@ void disassembleDPR(char *instrname, char **tokens, int numTokens, Decoded *inst
 // }
 
 // 2.3.2 Single Data Transfer Instructions
-void disassembleSDT(char *instrname, char **tokens, int numTokens, Decoded *instr, FILE *outputFile, int PC)
+void disassembleSDT(char *instrname, char **tokens, int numTokens, Instruction *instruction, FILE *outputFile, int PC)
 {
-    // Start with xxx1100xxxx...
-    uint32_t instruction = instr->instruction;
-    
-    //int instruction = (1 << 28) + (1 << 27);
-    setOnes(&instruction, lsOnes, SIZE_LS);
-
-    //define SDT
-    SDT *sdt = &(instr -> sdt);//
-
-    // Set rt
-    instruction |= getRegister(tokens[0]);
-    sdt->rt = getRegister(tokens[0]);//
+    SDT *sdt = &(instruction->sdt);
 
     // Set sf
-    int mode = getMode(tokens[0]);
-    sdt->mode = getMode(tokens[0]);//
-
-    instruction |= mode << 30;
+    sdt->sf = getMode(tokens[0]);
+    // Set rt
+    sdt->rt = getRegister(tokens[0]);
 
     // Check address: register or literal
-    if (*tokens[1] == '[')
-    {
-        // Single Data Transfer
-
+    if (hasOpenBracket(tokens[1])) { // Single Data Transfer
         // Common features for all
-        // Set 1s
-        //instruction |= (1 << 31) + (1 << 29);
-        setOnes(&instruction, sdtOnes, SIZE_SDT);
+        // Set mode
+        sdt->mode = 1;
+        // Set L: 1 -load, 0 - store
+        sdt->l = !strcasecmp(instrname, "ldr");
 
-        // Set L: 1 - load, 0 - store
-        instruction |= (!strcmp(instrname, "ldr")) << 22;
-        sdt->l = !strcmp(instrname, "ldr");//
-
-        char *cb1 = strchr(tokens[1], ']');
-        if (cb1 != NULL)
-            *cb1 = '\0'; // remove ] if necessary
         // Set xn
-        instruction |= getRegister(tokens[1] + 1) << 5; // remove [
-        sdt->xn = getRegister(tokens[1] + 1);    
+        sdt->xn = getRegister(tokens[1] + 1); // remove [ 
 
-        // Zero Unsigned Offset
-        if (numTokens == 2)
-        {
-            // No imm provided
+        if (numTokens == 2) { // Zero Unsigned Offset
             // Set U
-            instruction |= 1 << 24;
-            sdt->u = 1;//
-
-            // instr[PC++] = instruction;
-            fwrite(&instruction, sizeof(int), 1, outputFile);
+            sdt->u = 1;
             return;
         }
-        // numTokens = 3, so there is an immediate value or register provided
+
+        // There is an immediate value or register provided
         char *cb2 = strchr(tokens[2], ']');
         char *exM = strchr(tokens[2], '!');
-        if (cb2 != NULL && exM == NULL)
-        {
-                if (strchr(tokens[2], '#') != NULL)
-                {
-                    // Unsigned Immediate Offset
+        if (cb2 != NULL && exM == NULL) {
+                if (strchr(tokens[2], '#') != NULL) { // Unsigned Immediate Offset
                     // Set U
-                    instruction |= 1 << 24;
-                    sdt->u = 1;//
-
-                    // Set offset
-                    int imm12 = getImmediate(tokens[2]) / (mode ? 8 : 4);
-                    instruction |= imm12 << 10;
-                    sdt->imm12 = imm12;//
+                    sdt->u = 1;
+                    // Set imm12
+                    sdt->imm12 = getImmediate(tokens[2]) / (sdt->mode ? 8 : 4);
                 }
-                else
-                {
-                    // Register Offset
-                    sdt->offmode = 1;//
+                else { // Register Offset
+                    // Set offmode
+                    sdt->offmode = 1;
 
                     // Set 1s
-                    instruction |= (1 << 21) + (1 << 14) + (1 << 13) + (1 << 11);
+                    // TODO
                     // Set xm
-                    instruction |= getRegister(tokens[2]) << 16;
-                    sdt->xm = getRegister(tokens[2]); //
+                    sdt->xm = getRegister(tokens[2]);
 
                 }
-                // instr[PC++] = instruction;
-                fwrite(&instruction, sizeof(int), 1, outputFile);
                 return;
         }
-        // Deal with Pre-Indexed after if, so pass through
         // Pre-Indexed & Post-Indexed
-        sdt->offmode = 0;//
+        // Set offmode
+        sdt->offmode = 0;
 
         // Set 1s
-        instruction |= 1 << 10;
-        // Set I: 1 - pre, 0 - posr
-        instruction |= (cb2 != NULL) << 11;
-        sdt->i = (cb2 != NULL); // 1 for pre-, 0 for post-
-
+        // TODO
+        // Set I: 1 - pre, 0 - post
+        sdt->i = (cb2 != NULL);
         // Set simm9
-        int simm9 = getImmediate(tokens[2]);
-        sdt->simm9 = simm9;
-
-        // Apply mask because the value is signed
-        instruction |= simm9 << 12 & maskBetweenBits(20, 12);
+        sdt->simm9 = getImmediate(tokens[2]);;
     }
-    else
-    {
-
-        // Load Literal
-
-        // Check for immediate value
-        if (*tokens[1] == '#') 
-        {
-            sdt->simm19 = getImmediate(tokens[1]);
-            return;
-        }
-
-
+    else { // Load Literal
+        // Set simm19
         int literal = getLiteral(tokens[1]);    
-        if (literal == -1)
-        {
-            updateLabelMap(outputFile, ll, instruction, tokens[1]);
-            fwrite(&instruction, sizeof(int), 1, outputFile); // will be overwritten
-            return;
+        if (literal == INT32_MIN) {
+            updateUndefTable(outputFile, ll, instruction, tokens[1]);
         } 
-    
-
-        int offset = (literal - PC * 4) >> 2;
-        sdt->simm19 = offset;
-
-        instruction |= (offset << 5) & maskBetweenBits(23, 5);
-
+        sdt->simm19 = (literal - PC * 4) >> 2;
     }
-    // instr[PC++] = instruction;
-    fwrite(&instruction, sizeof(int), 1, outputFile);
 }
 
 // 2.3.3 Branching Instructions
-void disassembleB(char *instrname, char *token, Decoded *instr, FILE *outputFile, int PC)
+void disassembleB(char *instrname, char *token, Instruction *instruction, FILE *outputFile, int PC)
 {
-    uint32_t instruction = instr->instruction;
-    
-    // Start with xx0101xxxx...
-    //int instruction = (1 << 28) + (1 << 26);
-    setOnes(&instruction, bOnes, SIZE_B);
+    B *b = &(instruction->b); 
 
-    B *branch = &instr->br; 
-    // Unconditional
-    if (!strcmp(instrname, "b"))
-    {
-        //type uncondition = 0
-        branch->type = 0;
+    if (!strcmp(instrname, "b")) { // Unconditional
+        // Set type
+        b->type = 0;
         // Set simm26
-        // Check for immediate value
-        if (*token == '#') 
-        {
-            branch->simm26 = getImmediate(token);
-            return;
-        }
-
         int literal = getLiteral(token);
-        if (literal == -1)
-        {
-            updateLabelMap(outputFile, bu, instruction, token);
-            fwrite(&instruction, sizeof(int), 1, outputFile); // will be overwritten
-            return;
+        if (literal == INT32_MIN) {
+            updateUndefTable(outputFile, bu, instruction, token);
         }
-        int offset = (literal - PC * 4) >> 2;
-        branch->simm26 = offset;
-
-        instruction |= offset & maskBetweenBits(25, 0);
-    }
-    // Register
-    else if (!strcmp(instrname, "br"))
-    {
-        //register type = 3
-        branch->type = 3;
-        // Set 1s in the right places
-        instruction |= (1 << 31) + (1 << 30) + (1 << 25) + maskBetweenBits(20, 16);
-
+        b->simm26 = (literal - PC * 4) >> 2;
+    } else if (!strcmp(instrname, "br")) { // Register
+        // Set type
+        b->type = 3;
+        // Set 1s
+        // TODO
 
         // Set xn
-        branch->xn = getRegister(token);
-        instruction |= getRegister(token) << 5;
-    }
-    // Conditional
-    else
-    {
-        //conditional type = 1
-        branch->type = 1; 
+        b->xn = getRegister(token);
+    } else { // Conditional
+        // Set type
+        b->type = 1; 
 
         // Set 1s in the right places
-        instruction |= 1 << 30;
+        // TODO
 
         // Take by cases regarding the mnemonic
         char *p = instrname + 2;
-        switch (*p)
-        {
+        switch (*p) {
         case 'e': // eq - 0000
-            branch->cond = 0;
+            b->cond.tag = 0;
+            b->cond.neg = 0;
             break;
         case 'n': // ne - 0001
-            instruction |= 1;
-            branch->cond = 1;
+            b->cond.tag = 0;
+            b->cond.neg = 1;
             break;
         case 'g': // ge - 1010 and gt - 1100
-            instruction |= (*(p + 1) == 'e')
-                               ? 10
-                               : 12;
-            branch->cond = (*(p + 1) == 'e')
-                               ? 10
-                               : 12;
+            b->cond.tag = (*(p + 1) == 'e') ? 5 : 6;
+            b->cond.neg = 0;
             break;
         case 'l': // lt - 1011 and le - 1101
-            instruction |= (*(p + 1) == 't')
-                               ? 11
-                               : 13;
-            branch->cond = (*(p + 1) == 'e')
-                               ? 10
-                               : 12;
+            b->cond.tag = (*(p + 1) == 't') ? 5 : 6;
+            b->cond.neg = 1;
             break;
         case 'a': // al - 1110
-            instruction |= 14;
-            branch->cond = 14;
-            break;
-        default:
-            // Can't reach here
+            b->cond.tag = 7;
+            b->cond.neg = 0;
             break;
         }
         // Set simm19
-
-        if (*token == '#') 
-        {
-            branch->simm19 = getImmediate(token);
-            return;
-        }
-
         int literal = getLiteral(token);
-        if (literal == -1)
-        {
-            updateLabelMap(outputFile, bc, instruction, token);
-            fwrite(&instruction, sizeof(int), 1, outputFile); // will be overwritten
-            return;
+        if (literal == INT32_MIN) {
+            updateUndefTable(outputFile, bc, instruction, token);
         }
-
-        int offset = (literal - PC * 4) >> 2;
-        branch->simm19 = offset;
-        instruction |= (offset << 5) & maskBetweenBits(23, 5);
+        b->simm19 = (literal - PC * 4) >> 2;
     }
-    // instr[PC++] = instruction;
-    fwrite(&instruction, sizeof(int), 1, outputFile);
 }
 
 // 2.3.4 Special Instructions/Directives
-void disassembleDir(char *dir, FILE *outputFile)
-{
-    int instruction = getInt(dir);
-    fwrite(&instruction, sizeof(int), 1, outputFile);
-}
+// void disassembleDir(char *dir, int *instruction)
+// {
+//     int instruction = getInt(dir);
+// }

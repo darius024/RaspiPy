@@ -14,6 +14,7 @@
 #define SIZE_DPR (sizeof(dprOnes) / sizeof(int))
 #define SIZE_LS (sizeof(lsOnes) / sizeof(int))
 #define SIZE_SDT (sizeof(sdtOnes) / sizeof(int))
+#define SIZE_SDTREG (sizeof(sdtRegOnes) / sizeof(int))
 #define SIZE_B (sizeof(bOnes) / sizeof(int))
 
 
@@ -124,8 +125,10 @@ typedef struct
         struct
         {
             int32_t simm19;
-            uint8_t cond; // encoding of mnemonic //maybe split more like in emulate
-            bool neg;     // 4th bit of mnemonic
+            struct {
+                uint8_t tag;  // encoding of mnemonic //maybe split more like in emulate
+                bool neg;     // 4th bit of mnemonic
+            } cond;
         };
     };
 } B;
@@ -133,29 +136,28 @@ typedef struct
 typedef struct
 {
     InstructionType instructionType;
-    uint32_t instruction;
     union
     {
-        DPI dpimm;
+        DPI dpi;
         DPR dpr;
         SDT sdt;
-        B br;
+        B b;
     };
-} Decoded;
+} Instruction;
 
 
 // Function Prototypes
-extern void disassembleDPI(char *instrname, char **tokens, int numTokens, Decoded *instr);
+extern void disassembleDPI(char *instrname, char **tokens, int numTokens, Instruction *instr);
 
-extern void disassembleDPR(char *instrname, char **tokens, int numTokens, Decoded *instr);
+extern void disassembleDPR(char *instrname, char **tokens, int numTokens, Instruction *instr);
 
-extern void disassembleSDT(char *instrname, char **tokens, int numTokens, Decoded *instr, FILE *outputFile, int PC);
+extern void disassembleSDT(char *instrname, char **tokens, int numTokens, Instruction *instr, FILE *outputFile, int PC);
 
-extern void disassembleB(char *instrname, char *token, Decoded *instr, FILE *outputFile, int PC);
+extern void disassembleB(char *instrname, char *token, Instruction *instr, FILE *outputFile, int PC);
 
 extern void disassembleDir(char *dir, FILE *outputFile);
 
-extern void handleUnDefLabels(FILE *outputFile);
+extern void handleUndefTable(FILE *outputFile);
 
 extern int getPositionInArray(char *word,const char **words, int num);
 
@@ -165,6 +167,6 @@ extern bool checkForAliases(char *instrname);
 
 extern void setOnes(uint32_t *instruction, const int *bits, int num);
 
-extern void putBits(uint32_t *x, void *val, int start, int nbits);
+extern void putBits(uint32_t *instr, void *value, int start, int nbits);
 
 #endif

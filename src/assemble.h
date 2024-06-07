@@ -2,6 +2,7 @@
 #define ASSEMBLE_H
 
 #include <stdint.h>
+
 #include "vector.h"
 
 #define MAX_TOKEN_LENGTH 20
@@ -17,31 +18,30 @@
 // #define SIZE_DPI (sizeof(dpiOnes) / sizeof(int))
 // #define SIZE_DPR (sizeof(dprOnes) / sizeof(int))
 
-struct symbolTable
-{
+struct symbolTable {
     char label[MAX_TOKEN_LENGTH];
     int address;
 };
 
 
-//enum type for possible undefined label cases
+// enum type for possible undefined label cases
 typedef enum {
-    ll, //load literal 0
+    ll, // load literal 0
     bu, // branch unconditional 1 
     bc // branch conditional 2
- } unDefTypes;
+ } undefType;
 
 //one pass structure
-struct labelMap {
+struct undefTable {
     char label[MAX_TOKEN_LENGTH];
     long offset;
     uint32_t instr;
-    unDefTypes type;
+    undefType type;
 };
 
 
 //extern struct labelMap unDefLables[MAX_INSTRS];
-extern vector *unDefLables;
+extern vector *undeftable;
 
 //extern struct symbolTabl symtable[MAX_INSTRS]
 extern vector *symtable;

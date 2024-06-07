@@ -5,9 +5,10 @@
 
 // Type declarations
 typedef enum {
-    regOp,
-    immOp
-} opType;
+    imm, // immediate
+    reg, // register
+} dpType;
+// Only the third token of each DP instruction is needed to identify this
 
 // Function Prototypes
 extern int getMode(char *rd);
@@ -18,7 +19,7 @@ extern int getImmediate(char *imm);
 
 extern int getRegister(char *rd);
 
-extern int getOperand(char *op, bool *rOrImm);
+extern int getOperand(char *op, bool rOrImm);
 
 extern int getLiteral(char *literal);
 
@@ -26,6 +27,8 @@ extern int getShift(char *shift);
 
 extern int maskBetweenBits(int upp, int low);
 
-extern opType getOpType(char **tokens, int numTokens);
+extern dpType getOpType(char **tokens);
+
+extern void insertNewToken(char **tokens, char *insertingToken, int numTokens, int index);
 
 #endif

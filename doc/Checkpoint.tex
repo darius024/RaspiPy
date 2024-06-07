@@ -1,30 +1,61 @@
-\documentclass[11pt]{article}
+\documentclass{article}
 
 \usepackage{fullpage}
+\usepackage{graphicx} % Required for inserting images
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[scale=0.82, lining]{FiraMono}
+
+\title{C Interim Report}
+\author{Darius Aron, Sajesh Shakya, Orca Vanichjakvong, Yechan Yun}
+\date{07 June 2024}
 
 \begin{document}
 
-\title{ARM Checkpoint... }
-\author{TODO}
-
 \maketitle
 
-\section{Group Organisation}
+\section{Work Distribution and Co-ordination}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor
-incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
-nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-culpa qui officia deserunt mollit anim id est laborum.
+At the launch of this project, our team committed to proficiency and early task completion, ensuring ample time for subsequent refinements. Before diving into a formal plan, each member took some independent time to read the specification exhaustively and understand the architectural aspects of our project. It soon became clear that pair programming would be the most effective approach due to the seemingly different parts involved. Consequently, Darius and Orca began working on the emulator, while Yechan and Sajesh focused on the assembler.
 
-\section{Implementation Strategies}
+\subsection{Emulator Task Division}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor
-incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
-nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-culpa qui officia deserunt mollit anim id est laborum.
+Concerning Part I, Darius designed the structure of the emulator, from setting up the I/O interface and pipeline stages to working on the individual decoding and execution of each instruction. This quickly resulted in an initial working draft that passed all tests. Meanwhile, Orca not only deciphered his code but enhanced all nuances of it. He implemented all utility functions, improved code flow and clarity, and ensured portability.
+
+\subsection{Assembler Task Division}
+
+Simultaneously, Yechan structured the assembler determining the flow Part II should follow. He carried out instruction parsing, breaking down each line into its corresponding components. Then Sajesh took on the task of building the disassembler of each type of instruction, converting tokens into their binary representation. Darius, having completed the emulator, assisted in this process.
+
+After the assembler was completed, Darius wrote the assembly for Part III of the project, which Sajesh then assembled and tested on the Raspberry Pi.
+
+\subsection{Workflow}
+
+Regarding our workflow, we agreed to hold regular in-person meetings before or after lectures. During these meetings, we discussed our progress, reviewed new commits, and ensured everyone was informed about every aspect of the project. Making suggestions to each other and analyzing efficiency were also part of the process, ultimately clarifying the tasks that needed to be done next. Online weekend meetings facilitated frequent updates and collaboration, particularly when members were unavailable to come to campus.
+
+\section{Emulator Structure}
+
+Our emulator was meticulously designed to prioritize coherence and flow from the beginning. As such, our main function exclusively calls helper functions. Initially, all instructions from the input are read and stored in memory in little-endian format. Each instruction is then fetched, decoded, and executed in sequence, mimicking a linear pipeline. Finally, the values in registers and memory are written to output.
+
+A low-level implementation of an emulator involves intermediary stages and data structures that can store information. Thus, we designed a global structure to track the state of all registers and memory at any given time during execution, allowing all functions to access this state. Instructions are then classified into four categories: data processing immediate, data processing register, load/store, and branch. For these, we created an enumeration and a generic structure to hold information about the instruction type.
+
+However, our objective was not only to extract the bits from each instruction but also to capture the complete structure of the instruction. We accomplished this by defining a specific structure type for each category, capable of exclusively holding all variations and patterns of that instruction type using unions within structures. The next sensible step was to include a union of all these specific structures within the generic structure, enabling all instructions to be systematically stored. Hence, we allocate memory for a single structure, and the union is rewritten for each instruction. These abstract data types established a robust foundation for the future development of the project.
+
+Regarding the pipeline stages, each type of instruction received its own dedicated decode and execute function. The former constructs the structure type, while the latter accesses its fields and applies the changes accordingly to the global state. Their corresponding calls lie within the generic \texttt{decode} and \texttt{execute} blocks, which determine the type of instruction and call the appropriate function. This design enabled improved code modularity and maintainability.
+
+\section{Group Dynamics and Code Reuse}
+
+The actual results of our strategy exceeded our expectations, enabling us to complete the three parts within a week. However, this rapid progress also revealed some issues in our implementation, particularly limited code reusability between the emulator and assembler, as well as maintenance shortcomings. Our mentor also identified these drawbacks, prompting us to review and refine our work.
+
+Therefore, the focus of the second week shifted to enhancing code compatibility and implementing best coding practices. To achieve this, we restructured the assembler to use intermediary representations, which involved first disassembling a line of assembly code into a structure type and then decoding it into a binary instruction. By adopting a functional approach, we successfully reused all ADTs and decoders from the emulator by passing function pointers to manage instructions and structures symmetrically. Having two opposed functions that either extract bits out of the instruction and populate the structure or the reverse, we minimized code duplication and improved readability. As a result, the decoders now perform the second phase of the emulator and the third phase of the assembler, respectively. 
+
+As we progressed, we realized that the assembler could be designed to be completely symmetric to the emulator, by maintaining a three-step process: parsing the instruction into tokens, disassembling it into a structure, and then decoding it into an instruction. This strategy not only maximized code reuse but also prepared the files for easy division into shared modules. Accordingly, all IO functions, error checking, header files with ADTs, and macros remain consistent across both parts.
+
+Additionally, moving all constants to a separate header file allowed us to refine a final product - ready to be committed to the master branch. This blueprint of the emulator ensured easy maintenance of the instruction set, enabling alterations with minimal code changes by simply updating the header files.
+
+\section{Anticipated Challenges}
+
+Overcoming the challenges of the first three parts, we have learned the importance of intelligible design, the elegance of generic and portable code, and the balance between high-level planning and low-level implementation. We have grown as a team, learning from each other by sharing ideas, trusting one another to modify code, embracing different perspectives, and maintaining open communication.
+
+A future task that we anticipate to be particularly challenging is the extension. We aim to make it more sophisticated than the previous parts. To mitigate potential difficulties, we plan to collaborate intensively, having all of us actively involved and with well-defined roles. Of course, a compound extension comes with intricate testing requirements, which we are committed to tackling together.
+
 
 \end{document}

@@ -1,6 +1,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define MAX_TOKEN_LENGTH 20
+#define NUM_TOKENS 5
+
 // Specific ADTs
 
 // Data Processing Immediate
@@ -105,3 +108,22 @@ typedef struct {
         struct B b;
     };
 } Instruction;
+
+typedef struct
+{
+    enum type type;
+    int numTokens;
+    char *tokens[NUM_TOKENS];
+    char instrname[MAX_TOKEN_LENGTH];
+    char buff[BUFFER_LENGTH];
+} InstructionParse;
+
+
+// Malloc / Free Functions
+extern Instruction *initializeInstruction();
+
+extern void freeInstruction(Instruction *instruction);
+
+extern InstructionParse *initializeInstructionParse();
+
+extern void freeInstructionParse(InstructionParse *instr);

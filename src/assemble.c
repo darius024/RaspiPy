@@ -1,36 +1,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "assemble.h"
+
+#include "datatypes_as.h"
+#include "decoders.h"
 #include "disassembler.h"
-#include "utils.h"
+#include "io.h"
+#include "onepass.h"
+#include "structs.h"
+#include "utils_as.h"
 #include "vector.h"
 
 #define SPACE " "
 #define SPACECOMMA ", "
-#define OPCODE 0
-#define BUFFER_LENGTH 128
-#define MAX_TOKEN_LENGTH 20
-#define CPOINTER_SIZE sizeof(char *)
-#define MAX_INSTRS 200
-// #define NOP_INSTRUCTION 0xd503201f
 
-#define SIZE_DP sizeof(dataProcessing) / sizeof(char *)
-#define SIZE_B sizeof(branching) / sizeof(char *)
-#define SIZE_LS sizeof(loadAndStore) / sizeof(char *)
-#define SIZE_DIR sizeof(directive) / sizeof(char *)
+#define END_OF_FILE 0
+#define IN_FILE 1
 
-// int instr[MAX_INSTRS];
-int PC;
-
-typedef struct
-{
-    char *tokens[NUM_TOKENS];
-    char instrname[MAX_TOKEN_LENGTH];
-    char buff[BUFFER_LENGTH];
-} InstructionParse;
-
-FILE *outputFile;
+extern uint32_t binaryInstr;
+// Keep track of address of instruction executed
+extern int PC;
 
 // symtable stores symbolTables as elements
 vector *symtable;
@@ -38,83 +27,18 @@ vector *symtable;
 // undefLables stores labelMaps as elements
 vector *undeftable;
 
-enum type {
-    dp,  // data processing
-    ls,  // load/store
-    b,   // branch
-    dir, // .int
-    lb   // label
-};
-
-// Global keywords to determine instruction type
-static const char *dataProcessing[] = {
-    "add", "adds", "sub", "subs",
-    "cmp", "cmn",
-    "neg", "negs",
-    "and", "ands", "bic", "bics", "eor", "orr", "eon", "orn",
-    "tst",
-    "movk", "movn", "movz", "mov", "mvn",
-    "madd", "msub",
-    "mul", "mneg"};
-
-static const char *branching[] = {
-    "b", "br", "b.eq", "b.ne", "b.ge", "b.lt", "b.gt", "b.le", "b.al"};
-
-static const char *loadAndStore[] = {
-    "str", "ldr"};
-
-static const char *directive[] = {
-    ".int"};
-
-InstructionParse *initializeStruct()
+//
+// Update Data Structures
+//
+void updateBinaryInstr(uint32_t instruction)
 {
-    InstructionParse *instr = (InstructionParse *)malloc(sizeof(InstructionParse));
-    // Allocate memory for tokens
-    for (int i = 0; i < NUM_TOKENS; i++)
-    {
-        instr->tokens[i] = (char *)malloc((MAX_TOKEN_LENGTH + 1) * sizeof(char));
-        if (instr->tokens[i] == NULL)
-        {
-            perror("Failed to allocate space for tokens.\n");
-            for (int j = 0; j < i; j++) {
-                free(instr->tokens[j]);
-            }
-            exit(EXIT_FAILURE);
-        }
-    }
-    return instr;
-}
-
-void freeStruct(InstructionParse *instr)
-{
-    for (int i = 0; i < NUM_TOKENS; i++) {
-        free(instr->tokens[i]);
-    }
-    free(instr);
-}
-
-static Instruction *initializeInstruction() 
-{
-    Instruction *instruction = (Instruction *)malloc(sizeof(Instruction));
-
-    if (instruction == NULL) {
-        perror("Failed to allocate space for Instruction struct.\n");
-        exit(EXIT_FAILURE);
-    }
-    return instruction;
-}
-
-static void freeInstruction(Instruction *instruction) 
-{
-    free(instruction);
+    binaryInstr[PC++] = instruction;
 }
 
 void updateSymbolTable(InstructionParse *instr)
 {
     char *p = strchr(instr->instrname, ':');
-    if (p != NULL)
-    {
-        // Label Case - Update the symbol table
+    if (p != NULL) { // Label case
         *p = '\0';
 		struct symbolTable *symtableEntry = (struct symbolTable *)malloc(sizeof(struct symbolTable));
 		strcpy(symtableEntry->label, instr->instrname);
@@ -123,32 +47,20 @@ void updateSymbolTable(InstructionParse *instr)
 	}
 }
 
-void decompose(InstructionParse *instr, int *numTokens)
-{                                             
-    char *instrSavePntr = NULL; // Save pointer for instruction
-
-    // Break down an instruction into its tokens
-    char *token = strtok_r(instr->buff, SPACE, &instrSavePntr); // ignores any indent at start
-    // Take the mnemonic of the instruction
-    strcpy(instr->instrname, token);
-    // Take the first token
-    token = strtok_r(NULL, SPACECOMMA, &instrSavePntr);
-    *numTokens = 0;
-    while (token != NULL) {
-        strcpy(instr->tokens[*numTokens++], token);
-        token = strtok_r(NULL, SPACECOMMA, &instrSavePntr);
-    }
-}
-
+// Retrieve type of instruction being parsed
 enum type identifyType(char *instrname)
 {
     // Label
-    if (strchr(instrname, ':') != NULL) {
+    if (strchr(instrname, LABEL_ID) != NULL) {
         return lb;
     }
     // Directive
     if (checkWordInArray(instrname, directive, SIZE_DIR)) {
         return dir;
+    }
+    // Alias
+    if (checkWordInArray(instrname, aliases, SIZE_ALS)) {
+        return als;
     }
     // Branching
     if (checkWordInArray(instrname, branching, SIZE_B)) {
@@ -162,92 +74,130 @@ enum type identifyType(char *instrname)
     if (checkWordInArray(instrname, dataProcessing, SIZE_DP)) {
         return dp;
     }
-
     perror("Unsupported instruction name (mnemonic).\n");
     exit(EXIT_FAILURE);
 }
 
-void disassemble(Instruction *instruction, InstructionParse *instr)
+// Decompose an instruction into its correspoding type and tokens
+int decompose(InstructionParse *instr, FILE *input)
+{                     
+    if (!fgets(instr->buff, BUFFER_LENGTH, input)) {
+        return END_OF_FILE;
+    }
+    instr->buff[strlen(instr->buff) - 1] = '\0';
+
+    char *instrSavePntr = NULL; // Save pointer for instruction
+
+    // Break down an instruction into its tokens
+    char *token = strtok_r(instr->buff, SPACE, &instrSavePntr); // ignores any indent at start
+    // Take the mnemonic of the instruction
+    strcpy(instr->instrname, token);
+    instr->type = identifyType(instr->instrname);
+
+    // Take the first token
+    token = strtok_r(NULL, SPACECOMMA, &instrSavePntr);
+    instr->numTokens = 0;
+    while (token != NULL) {
+        strcpy(instr->tokens[instr->numTokens++], token);
+        token = strtok_r(NULL, SPACECOMMA, &instrSavePntr);
+    }
+    return IN_FILE;
+}
+
+// Construct a specific data structure out of the tokens based on instruction type
+int disassemble(InstructionParse *instr, Instruction *instruction, bool *disassembled)
 {
+    if (*(instr->buff) == '\0') {
+        return EXIT_SUCCESS;
+    }
     // Sends instruction to corresponding disassembler
-    int numTokens;
-    decompose(instr, &numTokens);
-    enum type instrType = identifyType(instr->instrname);
-
-    switch (instrType)
-    {
-    case lb:
-        updateSymbolTable(instr);
-        return; // no update of PC
-    case dir:
-        disassembleDir(instr->tokens[0], outputFile);
-        break;
-    case b:
-        disassembleB(instr->instrname, instr->tokens[0], instruction, outputFile, PC);
-        break;
-    case ls:
-        disassembleSDT(instr->instrname, instr->tokens, numTokens, instruction, outputFile, PC);
-        break;
-    case dp:
-        if (getOpType(instr->tokens) == imm) {
-            disassembleDPI(instr->instrname, instr->tokens, numTokens, instruction);
-        } else {
-            disassembleDPR(instr->instrname, instr->tokens, numTokens, instruction);
-        }
-        break;
+    *disassembled = false;
+    switch (instr->type) {
+        case lb:
+            updateSymbolTable(instr);
+            return;
+        case dir:
+            updateBinaryInstr(getInt(instr->tokens[0]));
+            return;
+        case als:
+            disassembleAlias(instr, instruction);
+            disassemble(instr, instruction, disassembled);
+            break;
+        case b:
+            disassembleB(instr, instruction);
+            break;
+        case ls:
+            disassembleSDT(instr, instruction);
+            break;
+        case dp:
+            if (getOpType(instr->tokens) == imm) {
+                disassembleDPI(instr, instruction);
+            } else {
+                disassembleDPR(instr, instruction);
+            }
+            break;
     }
-    // Update PC
-    PC++;
+    *disassembled = true;
+    return EXIT_SUCCESS;
 }
 
-void onePass(FILE *file, InstructionParse *instr)
+//
+// IO Handling
+//
+void writeBinaryInstr(FILE *file)
 {
-    PC = 0;
-    while (fgets(instr->buff, BUFFER_LENGTH, file))
-    {
-        // Remove empty line
-        instr->buff[strlen(instr->buff) - 1] = '\0';
-        // Check that buff is not empty
-        if (*instr->buff != '\0') {
-            disassembleRouter(instr);
-        }
-    }
+    fwrite(binaryInstr, sizeof(int), PC, file);
 }
 
+//
+// Main Program
+//
 int main(int argc, char **argv)
 {	
-    char *inputFilename;
-    char *outputFilename;
-    if (argc >= 3) {
-        inputFilename = argv[1];
-        outputFilename = argv[2];
+    char *inputFile;
+    char *outputFile;
+    if (argc >= 2) {
+        inputFile = argv[1];
+        outputFile = (argc > 2) ? argv[2] : STDOUT;
     } else {
-        perror("Provide both an input and an output file.\n");
+        perror("Provide at least an input file.\n");
         exit(EXIT_FAILURE);
     }
 
 	// Initializing data types
-    InstructionParse *instr = initializeStruct();
+    uint32_t *instr = &binaryInstr[PC];
     Instruction *instruction = initializeInstruction();
+    InstructionParse *instructionParse = initializeInstructionParse();
 	symtable = initializeVector(MAX_INSTRS, sizeof(struct symbolTable));
 	undeftable = initializeVector(MAX_INSTRS, sizeof(struct undefTable));
-
-    // Prepare output file for writing
-    openBinaryFile(outputFilename);
+    bool disassembled;
 
     // Read from assembly file and disassemble each line
-    loadAssemblyFile(inputFilename, instr);
+    FILE *input = loadInputFile(inputFile, "s", "r");
+    // Prepare output file for writing
+    FILE *output = openOutputFile(outputFile, "bin", "wb");
+
+    while(decompose(instructionParse, input) != END_OF_FILE) {
+        int disassembleError = disassemble(instructionParse, instruction, &disassembled);
+        checkError(disassembleError);
+        int decodeError = (disassembled) ? decode(instr, instruction, putBits) : EXIT_SUCCESS;
+        checkError(decodeError);
+    }
 
     // One-pass: Compute previous undefined instructions
     handleUndefTable(outputFile);
 
     // Freeing data types
-    freeStruct(instr);
+    freeInstructionParse(instructionParse);
     freeInstruction(instruction);
 	freeVector(symtable);
    	freeVector(undeftable);
 
-    fclose(outputFile);
+    // Write the binary instructions
+    writeBinaryInstr(output);
+
+    // Close files
+    closeFiles(input, output);
 
     return EXIT_SUCCESS;
 }

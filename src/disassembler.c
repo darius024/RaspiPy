@@ -4,430 +4,216 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "constants.h"
+#include "datatypes_as.h"
 #include "disassembler.h"
-#include "utils.h"
-#include "assemble.h"
+#include "instructions.h"
+#include "onepass.h"
+#include "utils_as.h"
 
-// Global keywords
-//static const char *singleOperand[] = {
-//     "mov", "mul", "mneg", "neg", "negs", "mvn", "movz", "movn", "movk"};
-// static const char *twoOperandNoDest[] = {
-//     "cmp", "cmn", "tst"};
-static const char *wideMoves[] = {
-    "movn", "", "movz", "movk"};
-//static const char *multiply[] = {
-//    "madd", "msub"};
-static const char *arithmetics[] = {
-    "add", "adds", "sub", "subs"};
-static const char *logical[] = {
-    "and", "bic", "orr", "orn", "eor", "eon", "ands", "bics"};
-static const char *multiply[] = {
-    "madd", "msub"};
-static const char *aliases[] = {
-    "cmp", "cmn", "neg", "negs", "tst", "mvn", "mov", "mul", "mneg"};
+#define CMP 0
+#define CMN 1
+#define NEG 2
+#define NEGS 3
+#define TST 4
+#define MVN 5
+#define MOV 6
+#define MUL 7
+#define MNEG 8
 
-static const int dpiOnes[] = {28};
-static const int dprOnes[] = {25, 27};
-static const int lsOnes[] = {27, 28};
-static const int sdtOnes[] = {29};
-static const int sdtRegOnes[] = {11, 13, 14};
-static const int bOnes[] = {26, 28};
-
-
-// Function Prototype
-//static void disassembleAliases(char *instrname, char **tokens, int numTokens, FILE *outputFile);
-
-static void updateUndefTable(FILE *outputFile, undefType type, uint32_t instr, char *labelName)
+int disassembleDPI(InstructionParse *instr, Instruction *instruction)
 {
-	struct undefTable *newEntry = (struct undefTable *)malloc(sizeof(struct undefTable));
-	newEntry -> offset = ftell(outputFile);
-	newEntry -> type = type;
-	newEntry -> instr = instr;
-	strcpy(newEntry -> label, labelName);
-	addToVector(undeftable, newEntry);
-}
+    struct DPI *dpi = &(instruction->dpi);
 
-static void handleUndefLabel(FILE *outputFile, int i)
-{
-	struct undefTable *entry = (struct undefTable *)getFromVector(undeftable, i);
-	uint32_t PC = entry->offset;
-	uint32_t instruction = entry->instr;
+    dpi->sf = getMode(instr->tokens[0]);
+    dpi->rd = getRegister(instr->tokens[0]);
 
-    int literal = getLiteral(entry->label);
-    int offset = (literal - PC) >> 2;
-
-    switch (entry->type)
-	{
-    case ll: // Load Literal
-    case bc: // Branch Conditional
-        putBits(&instruction, &offset, 5, 19);
-        break;
-    case bu: // Branch Unconditional
-        putBits(&instruction, &offset, 0, 26);
-        break;
-    }
-    
-    // Write to output file
-    fseek(outputFile, entry->offset, SEEK_SET);
-    fwrite(&instruction, sizeof(int), 1, outputFile);
-}
-
-// Iterates through vector to handle all the undefined lables
-void handleUndefTable(FILE *outputFile)
-{   
-    for (int i = 0; i < undeftable->currentSize; i++) {
-        handleUndefLabel(outputFile, i);
-    }
-}
-
-int getPositionInArray(char *word, const char **words, int num)
-{
-    for (int i = 0; i < num; i++) {
-        if (strcasecmp(word, words[i]) == 0) {
-            return i;
-        }
-    }
-    return -1;
-}
-
-bool checkWordInArray(char *word, const char **words, int num)
-{
-    return (getPositionInArray(word, words, num) != -1);
-}
-
-bool checkForAliases(char *instrname)
-{
-    return checkWordInArray(instrname, aliases, SIZE_ALIASES);
-}
-
-void setOnes(uint32_t *instruction, const int *bits, int num)
-{
-    for (int i = 0; i < num; i++) {
-        *instruction |= 1 << bits[i];
-    }
-}
-
-bool hasOpenBracket(char *token) {
-    return (strchr(token, '[') != NULL);
-}
-
-void putBits(uint32_t *instr, void *value, int start, int nbits)
-{
-    uint32_t mask = ((1 << nbits) - 1);
-    if (nbits == 1) {
-        *instr |= (*(bool *)value & mask) << start;
-    } else if (nbits <= 8) {
-        *instr |= (*(uint8_t *)value & mask) << start;
-    } else if (nbits <= 16) {
-        *instr |= (*(uint16_t *)value & mask) << start;
-    } else {
-        *instr |= (*(uint32_t *)value & mask) << start;
-    }
-}
-
-void disassembleDPI(char *instrname, char **tokens, int numTokens, Instruction *instruction)
-{
-    DPI *dpi = &(instruction->dpi);
-
-    // Set sf
-    dpi->sf = getMode(tokens[0]);
-    // Set rd
-    dpi->rd = getRegister(tokens[0]);
-
-    int arithmPos = getPositionInArray(instrname, arithmetics, SIZE_ARITHMETICS);
-    if (arithmPos + 1) { // Arithmetics
-        // Set opc
+    int arithmPos = getPositionInArray(instr->instrname, arithmetics, SIZE_ARITHMETICS);
+    if (arithmPos != NOT_FOUND) { // Arithmetics
         dpi->opc = arithmPos;
-        // Set opi
-        dpi->opi = 2;
-        // Set rn
-        dpi->rn = getRegister(tokens[1]);
-        // Set imm12
-        dpi->imm12 = getImmediate(tokens[2]);
-        // Set sh
-        dpi->sh = (numTokens > 3) ? (getImmediate(tokens[4]) / 12) : 0;
+        dpi->opi = ARITHMETIC;
+        dpi->rn = getRegister(instr->tokens[1]);
+        dpi->imm12 = getImmediate(instr->tokens[2]);
+        dpi->sh = (instr->numTokens > 3) ? (getImmediate(instr->tokens[4]) / ARITHMETIC_SHIFT) : 0;
     } else { // Wide Moves
-        // Set opc
-        dpi->opc = getPositionInArray(instrname, wideMoves, SIZE_WIDEMOVES);
-        // Set opi
-        dpi->opi = 5;
-        // Set hw
-        dpi->hw = (numTokens > 2) ? (getImmediate(tokens[3]) / 16) : 0;
-        // Set imm16
-        dpi->imm16 = getImmediate(tokens[1]);
+        dpi->opc = getPositionInArray(instr->instrname, wideMoves, SIZE_WIDEMOVES);
+        dpi->opi = WIDEMOVE;
+        dpi->hw = (instr->numTokens > 2) ? (getImmediate(instr->tokens[3]) / WIDEMOVE_SHIFT) : 0;
+        dpi->imm16 = getImmediate(instr->tokens[1]);
     }
+    return EXIT_SUCCESS;
 }
 
-void disassembleDPR(char *instrname, char **tokens, int numTokens, Instruction *instruction)
+int disassembleDPR(InstructionParse *instr, Instruction *instruction)
 {
-    DPR *dpr = &(instruction->dpr);
+    struct DPR *dpr = &(instruction->dpr);
 
-    // Set sf
-    dpr->sf = getMode(tokens[0]);
-    // Set rm
-    dpr->rm = getRegister(tokens[2]);
-    // Set rn
-    dpr->rn = getRegister(tokens[1]);
-    // Set rd
-    dpr->rd = getRegister(tokens[0]);
+    dpr->sf = getMode(instr->tokens[0]);
+    dpr->rm = getRegister(instr->tokens[2]);
+    dpr->rn = getRegister(instr->tokens[1]);
+    dpr->rd = getRegister(instr->tokens[0]);
 
-    int mulPos = getPositionInArray(instrname, multiply, SIZE_MULTIPLY);
-    if (mulPos + 1) { // Multiply
-        // Set m
+    int mulPos = getPositionInArray(instr->instrname, multiply, SIZE_MULTIPLY);
+    if (mulPos != NOT_FOUND) { // Multiply
         dpr->m = 1;
-        // Set opr
-        dpr->opr = 8; // only this supported
-        // Set x
+        dpr->opr = DPR_MUL; // only this supported
         dpr->x = mulPos;
-        // Set ra
-        dpr->ra = getRegister(tokens[3]);
+        dpr->ra = getRegister(instr->tokens[3]);
         return;
     }
 
     // Arithmetic / Bit-logic
-    // Set m
     dpr->m = 0;
-    // Set shift
-    dpr->shift = (numTokens > 3) ? getShift(tokens[3]) : 0;
-    // Set operand
-    dpr->operand = (numTokens > 3) ? getImmediate(tokens[4]) : 0;
+    dpr->shift = (instr->numTokens > 3) ? getShift(instr->tokens[3]) : 0;
+    dpr->operand = (instr->numTokens > 3) ? getImmediate(instr->tokens[4]) : 0;
 
-    int arithmPos =  getPositionInArray(instrname, arithmetics, SIZE_ARITHMETICS);
-    if (arithmPos + 1) { // Arithmetic
-        // Set opc
+    int arithmPos = getPositionInArray(instr->instrname, arithmetics, SIZE_ARITHMETICS);
+    if (arithmPos != NOT_FOUND) { // Arithmetic
         dpr->opc = arithmPos;
-        // Set armOrLog
         dpr->armOrLog = 1;
-        // Set n
         dpr->n = 0;
     } else { // Logical
-        // Set opc
-        dpr->opc = getPositionInArray(instrname, logical, SIZE_LOGICAL) / 2;
-        // Set armOrLog
+        dpr->opc = getPositionInArray(instr->instrname, logical, SIZE_LOGICAL) / 2;
         dpr->armOrLog = 0;
-        // Set n
-        dpr->n = getPositionInArray(instrname, logical, SIZE_LOGICAL) % 2;
+        dpr->n = getPositionInArray(instr->instrname, logical, SIZE_LOGICAL) % 2;
     }
+    return EXIT_SUCCESS;
 }
 
-
-// Assemble aliases
-// Static because we don't call it explicitly
-// static void disassembleAliases(char *instrname, char **tokens, int numTokens, Instruction *decoded)
-// {
-//     // 9 cases
-//     // 0 - mov, 1 - cmn, 2(3) - neg(s), 4 - tst,
-//     // 5 - mvn, 6 - mov, 7 - mul, 8 - mneg
-//     // For each: set up tokens and delegate to disassembleDP again
-
-//     // Get mode: w or x
-//     int mode = getMode(tokens[0]);
-//     int instr;
-//     for (instr = 0; instr < 9; instr++)
-//     {
-//         if (!strcmp(instrname, aliases[instr]))
-//             break;
-//     }
-//     // instr has the index of the mnemonic in aliases[]
-
-//     // Add rzr as first token
-//     // cmp, cmn, tst
-//     if (instr <= 1 || instr == 4)
-//     {
-//         for (int i = numTokens; i > 0; i--)
-//             strcpy(tokens[i], tokens[i - 1]);
-//         strcpy(tokens[0], mode ? "xzr" : "wzr");
-//         switch (instr)
-//         {
-//         case 0:
-//             strcpy(instrname, "subs");
-//             break;
-//         case 1:
-//             strcpy(instrname, "adds");
-//             break;
-//         case 4:
-//             strcpy(instrname, "ands");
-//             break;
-//         }
-//         disassembleDPR(instrname, tokens, ++numTokens, decoded);
-//         return;
-//     }
-
-//     // Add rzr as second token
-//     // neg, negs, mvn, mov
-//     if (instr == 2 || instr == 3 || instr == 5 || instr == 6)
-//     {
-//         for (int i = numTokens; i > 1; i--)
-//             strcpy(tokens[i], tokens[i - 1]);
-//         strcpy(tokens[1], mode ? "xzr" : "wzr");
-//         switch (instr)
-//         {
-//         case 2:
-//             strcpy(instrname, "sub");
-//             break;
-//         case 3:
-//             strcpy(instrname, "subs");
-//             break;
-//         case 5:
-//             strcpy(instrname, "orn");
-//             break;
-//         case 6:
-//             strcpy(instrname, "orr");
-//             break;
-//         }
-//         disassembleDPR(instrname, tokens, ++numTokens, decoded);
-//         return;
-//     }
-
-//     // Add rzr as last token
-//     // mul, mneg
-//     strcpy(tokens[numTokens], mode ? "xzr" : "wzr");
-//     switch (instr)
-//     {
-//     case 7:
-//         strcpy(instrname, "madd");
-//         break;
-//     case 8:
-//         strcpy(instrname, "msub");
-//         break;
-//     }
-//     disassembleDPR(instrname, tokens, ++numTokens, decoded);
-// }
-
 // 2.3.2 Single Data Transfer Instructions
-void disassembleSDT(char *instrname, char **tokens, int numTokens, Instruction *instruction, FILE *outputFile, int PC)
+int disassembleSDT(InstructionParse *instr, Instruction *instruction, FILE *outputFile, int PC)
 {
-    SDT *sdt = &(instruction->sdt);
+    struct SDT *sdt = &(instruction->sdt);
 
-    // Set sf
-    sdt->sf = getMode(tokens[0]);
-    // Set rt
-    sdt->rt = getRegister(tokens[0]);
+    sdt->sf = getMode(instr->tokens[0]);
+    sdt->rt = getRegister(instr->tokens[0]);
 
     // Check address: register or literal
-    if (hasOpenBracket(tokens[1])) { // Single Data Transfer
+    if (hasOpenBracket(instr->tokens[1])) { // Single Data Transfer
         // Common features for all
-        // Set mode
         sdt->mode = 1;
-        // Set L: 1 -load, 0 - store
-        sdt->l = !strcasecmp(instrname, "ldr");
+        sdt->l = !strcasecmp(instr->instrname, "ldr");
+        sdt->xn = getRegister(instr->tokens[1] + 1); // remove [
 
-        // Set xn
-        sdt->xn = getRegister(tokens[1] + 1); // remove [ 
-
-        if (numTokens == 2) { // Zero Unsigned Offset
-            // Set U
+        if (instr->numTokens == 2) { // Zero Unsigned Offset
             sdt->u = 1;
             return;
         }
 
         // There is an immediate value or register provided
-        char *cb2 = strchr(tokens[2], ']');
-        char *exM = strchr(tokens[2], '!');
+        char *cb2 = strchr(instr->tokens[2], ']');
+        char *exM = strchr(instr->tokens[2], '!');
         if (cb2 != NULL && exM == NULL) {
-                if (strchr(tokens[2], '#') != NULL) { // Unsigned Immediate Offset
-                    // Set U
-                    sdt->u = 1;
-                    // Set imm12
-                    sdt->imm12 = getImmediate(tokens[2]) / (sdt->mode ? 8 : 4);
-                }
-                else { // Register Offset
-                    // Set offmode
-                    sdt->offmode = 1;
+            if (strchr(instr->tokens[2], '#') != NULL) { // Unsigned Immediate Offset
+                sdt->u = 1;
+                sdt->imm12 = getImmediate(instr->tokens[2]) / (sdt->mode ?  8 : 4);
+            } else { // Register Offset
+                sdt->offmode = 1;
 
-                    // Set 1s
-                    // TODO
-                    // Set xm
-                    sdt->xm = getRegister(tokens[2]);
-
-                }
-                return;
+                // Set 1s
+                // TODO
+                sdt->xm = getRegister(instr->tokens[2]);
+            }
+            return;
         }
         // Pre-Indexed & Post-Indexed
-        // Set offmode
         sdt->offmode = 0;
 
         // Set 1s
         // TODO
-        // Set I: 1 - pre, 0 - post
         sdt->i = (cb2 != NULL);
-        // Set simm9
-        sdt->simm9 = getImmediate(tokens[2]);;
-    }
-    else { // Load Literal
-        // Set simm19
-        int literal = getLiteral(tokens[1]);    
+        sdt->simm9 = getImmediate(instr->tokens[2]);
+    } else { // Load Literal
+        int literal = getLiteral(instr->tokens[1]);
         if (literal == INT32_MIN) {
-            updateUndefTable(outputFile, ll, instruction, tokens[1]);
-        } 
-        sdt->simm19 = (literal - PC * 4) >> 2;
+            updateUndefTable(ll, instr->tokens[1]);
+        }
+        sdt->simm19 = (literal - PC * INSTR_BYTES) >> 2;
     }
+    return EXIT_SUCCESS;
 }
 
 // 2.3.3 Branching Instructions
-void disassembleB(char *instrname, char *token, Instruction *instruction, FILE *outputFile, int PC)
+int disassembleB(InstructionParse *instr, Instruction *instruction, FILE *outputFile, int PC)
 {
-    B *b = &(instruction->b); 
+    struct B *b = &(instruction->b);
 
-    if (!strcmp(instrname, "b")) { // Unconditional
-        // Set type
+    if (!strcmp(instr->instrname, "b")) { // Unconditional
         b->type = 0;
-        // Set simm26
-        int literal = getLiteral(token);
+        int literal = getLiteral(instr->tokens[0]);
         if (literal == INT32_MIN) {
-            updateUndefTable(outputFile, bu, instruction, token);
+            updateUndefTable(bu, instr->tokens[0]);
         }
-        b->simm26 = (literal - PC * 4) >> 2;
-    } else if (!strcmp(instrname, "br")) { // Register
-        // Set type
+        b->simm26 = (literal - PC * INSTR_BYTES) >> 2;
+    } else if (!strcmp(instr->instrname, "br")) { // Register
         b->type = 3;
         // Set 1s
         // TODO
-
-        // Set xn
-        b->xn = getRegister(token);
+        b->xn = getRegister(instr->tokens[0]);
     } else { // Conditional
-        // Set type
-        b->type = 1; 
+        b->type = 1;
 
-        // Set 1s in the right places
+        // Set 1s
         // TODO
 
         // Take by cases regarding the mnemonic
-        char *p = instrname + 2;
+        char *p = instr->instrname + 2;
         switch (*p) {
-        case 'e': // eq - 0000
-            b->cond.tag = 0;
-            b->cond.neg = 0;
-            break;
-        case 'n': // ne - 0001
-            b->cond.tag = 0;
-            b->cond.neg = 1;
-            break;
-        case 'g': // ge - 1010 and gt - 1100
-            b->cond.tag = (*(p + 1) == 'e') ? 5 : 6;
-            b->cond.neg = 0;
-            break;
-        case 'l': // lt - 1011 and le - 1101
-            b->cond.tag = (*(p + 1) == 't') ? 5 : 6;
-            b->cond.neg = 1;
-            break;
-        case 'a': // al - 1110
-            b->cond.tag = 7;
-            b->cond.neg = 0;
-            break;
+            case 'e': // eq - 0000
+                b->cond.tag = EQ_NE_TAG;
+                b->cond.neg = EQ_NEG;
+                break;
+            case 'n': // ne - 0001
+                b->cond.tag = EQ_NE_TAG;
+                b->cond.neg = NE_NEG;
+                break;
+            case 'g': // ge - 1010 and gt - 1100
+                b->cond.tag = (*(p + 1) == 'e') ? GE_LT_TAG : GT_LE_TAG;
+                b->cond.neg = GE_NEG;
+                break;
+            case 'l': // lt - 1011 and le - 1101
+                b->cond.tag = (*(p + 1) == 't') ? GE_LT_TAG : GT_LE_TAG;
+                b->cond.neg = LT_NEG;
+                break;
+            case 'a': // al - 1110
+                b->cond.tag = ALWAYS_TAG;
+                b->cond.neg = ALWAYS_NEG;
+                break;
+            default:
+                perror("Unrecognized conditional branch.\n");
+                return EXIT_FAILURE;
         }
-        // Set simm19
-        int literal = getLiteral(token);
+        int literal = getLiteral(instr->tokens[0]);
         if (literal == INT32_MIN) {
-            updateUndefTable(outputFile, bc, instruction, token);
+            updateUndefTable(bc, instr->tokens[0]);
         }
-        b->simm19 = (literal - PC * 4) >> 2;
+        b->simm19 = (literal - PC * INSTR_BYTES) >> 2;
     }
+    return EXIT_SUCCESS;
 }
 
-// 2.3.4 Special Instructions/Directives
-// void disassembleDir(char *dir, int *instruction)
-// {
-//     int instruction = getInt(dir);
-// }
+// Disassemble Aliases
+// Rephrase the instruction and delegate behaviour to the corresponding disassembler
+int disassembleAlias(InstructionParse *instr, Instruction *instruction)
+{
+    // Get mode: 0 - w, 1 - x
+    int mode = getMode(instr->tokens[0]);
+    int idx = getPositionInArray(instr->instrname, aliases, SIZE_ALS);
+
+    // Change type to dp
+    instr->type = dp;
+    
+    strcpy(instr->instrname, aliasesName[idx]);
+
+    if (idx == CMP || idx == CMN || idx == TST) {
+        // Add rzr as 1st token - cmp, cmn, tst
+        insertNewToken(instr->tokens, mode ? "xzr" : "wzr", instr->numTokens, 0);
+    } else if (idx == NEG || idx == NEGS || idx == MVN || idx == MOV) {
+        // Add rzr as 2nd token - neg, negs, mvn, mov
+        insertNewToken(instr->tokens, mode ? "xzr" : "wzr", instr->numTokens, 1);
+    } else {
+        // Add rzr as 4th token - mul, mneg
+        insertNewToken(instr->tokens, mode ? "xzr" : "wzr", instr->numTokens, 4);
+    }
+    return EXIT_SUCCESS;
+}

@@ -21,20 +21,19 @@ int decodeDPI(uint32_t *instr, Instruction *instruction, BitFunc bitFunc)
     bitFunc(instr, &(dpi->rd), DPI_RD_OFFSET, DPI_RD_LEN);
 
     // Type of data processing operation
-    switch (dpi->opi)
-    {
-    case 2: // Arithmetic
-        bitFunc(instr, &(dpi->sh), DPI_SH_OFFSET, DPI_SH_LEN);
-        bitFunc(instr, &(dpi->imm12), DPI_IMM12_OFFSET, DPI_IMM12_LEN);
-        bitFunc(instr, &(dpi->rn), DPI_RN_OFFSET, DPI_RN_LEN);
-        break;
-    case 5: // Wide Move
-        bitFunc(instr, &(dpi->hw), DPI_HW_OFFSET, DPI_HW_LEN);
-        bitFunc(instr, &(dpi->imm16), DPI_IMM16_OFFSET, DPI_IMM16_LEN);
-        break;
-    default:
-        perror("Unsupported opi (bits 23-25), use either 010 or 101.\n");
-        return EXIT_FAILURE;
+    switch (dpi->opi) {
+        case ARITHMETIC: // Arithmetic
+            bitFunc(instr, &(dpi->sh), DPI_SH_OFFSET, DPI_SH_LEN);
+            bitFunc(instr, &(dpi->imm12), DPI_IMM12_OFFSET, DPI_IMM12_LEN);
+            bitFunc(instr, &(dpi->rn), DPI_RN_OFFSET, DPI_RN_LEN);
+            break;
+        case WIDEMOVE: // Wide Move
+            bitFunc(instr, &(dpi->hw), DPI_HW_OFFSET, DPI_HW_LEN);
+            bitFunc(instr, &(dpi->imm16), DPI_IMM16_OFFSET, DPI_IMM16_LEN);
+            break;
+        default:
+            perror("Unsupported opi (bits 23-25), use either 010 or 101.\n");
+            return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
 }
@@ -52,15 +51,13 @@ int decodeDPR(uint32_t *instr, Instruction *instruction, BitFunc bitFunc)
     bitFunc(instr, &(dpr->rd), DPR_RD_OFFSET, DPR_RD_LEN);
 
     // Type of data processing operation
-    if (dpr->m == 0)
-    { // Arithmetic, Bit-logic
+    if (dpr->m == 0) { // Arithmetic, Bit-logic
         bitFunc(instr, &(dpr->opc), DPR_OPC_OFFSET, DPR_OPC_LEN);
         bitFunc(instr, &(dpr->armOrLog), DPR_ARMORLOG_OFFSET, DPR_ARMORLOG_LEN);
         bitFunc(instr, &(dpr->shift), DPR_SHIFT_OFFSET, DPR_SHIFT_LEN);
         bitFunc(instr, &(dpr->n), DPR_N_OFFSET, DPR_N_LEN);
     }
-    else
-    { // Multiply
+    else { // Multiply
         bitFunc(instr, &(dpr->opr), DPR_OPR_OFFSET, DPR_OPR_LEN);
         bitFunc(instr, &(dpr->x), DPR_X_OFFSET, DPR_X_LEN);
         bitFunc(instr, &(dpr->ra), DPR_RA_OFFSET, DPR_RA_LEN);
@@ -78,8 +75,7 @@ int decodeSDT(uint32_t *instr, Instruction *instruction, BitFunc bitFunc)
     bitFunc(instr, &(sdt->rt), SDT_RT_OFFSET, SDT_RT_LEN);
 
     // Type of addressing mode
-    if (sdt->mode == 1)
-    { // Single Data Transfer
+    if (sdt->mode == 1) { // Single Data Transfer
         bitFunc(instr, &(sdt->u), SDT_U_OFFSET, SDT_U_LEN);
         bitFunc(instr, &(sdt->l), SDT_L_OFFSET, SDT_L_LEN);
         bitFunc(instr, &(sdt->offmode), SDT_OFFMODE_OFFSET, SDT_OFFMODE_LEN);
@@ -100,8 +96,7 @@ int decodeSDT(uint32_t *instr, Instruction *instruction, BitFunc bitFunc)
             bitFunc(instr, &(sdt->xm), SDT_XM_OFFSET, SDT_XM_LEN);
         }
     }
-    else
-    { // Load Literal
+    else { // Load Literal
         bitFunc(instr, &(sdt->simm19), SDT_SIMM19_OFFSET, SDT_SIMM19_LEN);
         signExtendTo32Bits(&(sdt->simm19), 19);
     }
@@ -116,52 +111,56 @@ int decodeB(uint32_t *instr, Instruction *instruction, BitFunc bitFunc)
     bitFunc(instr, &(b->type), B_TYPE_OFFSET, B_TYPE_LEN);
 
     // Type of branch
-    switch (b->type)
-    {
-    case BRANCH_UNCONDITIONAL: // Unconditional
-        bitFunc(instr, &(b->simm26), B_SIMM26_OFFSET, B_SIMM26_LEN);
-        signExtendTo32Bits(&(b->simm26), 26);
-        break;
-    case BRANCH_CONDITIONAL: // Conditional
-        bitFunc(instr, &(b->simm19), B_SIMM19_OFFSET, B_SIMM19_LEN);
-        signExtendTo32Bits(&(b->simm19), 19);
-        bitFunc(instr, &(b->cond.tag), B_TAG_OFFSET, B_TAG_LEN);
-        bitFunc(instr, &(b->cond.neg), B_NEG_OFFSET, B_NEG_LEN);
-        break;
-    case BRANCH_REGISTER: // Register
-        bitFunc(instr, &(b->xn), B_XN_OFFSET, B_XN_LEN);
-        break;
-    default:
-        perror("Unsupported branch type (bits 30-31), use either 00, 01 or 11.\n");
-        return EXIT_FAILURE;
+    switch (b->type) {
+        case BRANCH_UNCONDITIONAL: // Unconditional
+            bitFunc(instr, &(b->simm26), B_SIMM26_OFFSET, B_SIMM26_LEN);
+            signExtendTo32Bits(&(b->simm26), 26);
+            break;
+        case BRANCH_CONDITIONAL: // Conditional
+            bitFunc(instr, &(b->simm19), B_SIMM19_OFFSET, B_SIMM19_LEN);
+            signExtendTo32Bits(&(b->simm19), 19);
+            bitFunc(instr, &(b->cond.tag), B_TAG_OFFSET, B_TAG_LEN);
+            bitFunc(instr, &(b->cond.neg), B_NEG_OFFSET, B_NEG_LEN);
+            break;
+        case BRANCH_REGISTER: // Register
+            bitFunc(instr, &(b->xn), B_XN_OFFSET, B_XN_LEN);
+            break;
+        default:
+            perror("Unsupported branch type (bits 30-31), use either 00, 01 or 11.\n");
+            return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
+}
+
+static int setOp0(Instruction *instruction) {
+    switch(instruction->instructionType) {
+        case isDPI:
+            return OP0_DPI;
+        case isDPR:
+            return OP0_DPR;
+        case isSDT:
+            return OP0_SDT;
+        case isB:
+            return OP0_B;
+    }
+    return EXIT_FAILURE;
 }
 
 // Generic decoder
 int decode(uint32_t *instr, Instruction *instruction, BitFunc bitFunc)
 {
-    uint8_t op0;
-    getBits(instr, &op0, 25, 4);
+    uint8_t op0 = setOp0(instruction);
+    bitFunc(instr, &op0, 25, 4);
 
-    if (OP0_IS_DPI(op0))
-    { // 100x - Data Processing Immediate
+    if (OP0_IS_DPI(op0)) { // 100x - Data Processing Immediate
         return decodeDPI(instr, instruction, bitFunc);
-    }
-    else if (OP0_IS_DPR(op0))
-    { // x101 - Data Processing Register
+    } else if (OP0_IS_DPR(op0)) { // x101 - Data Processing Register
         return decodeDPR(instr, instruction, bitFunc);
-    }
-    else if (OP0_IS_SDT(op0))
-    { // x1x0 - Loads and Stores
+    } else if (OP0_IS_SDT(op0)) { // x1x0 - Loads and Stores
         return decodeSDT(instr, instruction, bitFunc);
-    }
-    else if (OP0_IS_B(op0))
-    { // 101x - Branch
+    } else if (OP0_IS_B(op0)) { // 101x - Branch
         return decodeB(instr, instruction, bitFunc);
-    }
-    else
-    {
+    } else {
         perror("Unsupported op0 (bits 25-28), use either 100x, x101, x1x0 or 101x.\n");
         return EXIT_FAILURE;
     }

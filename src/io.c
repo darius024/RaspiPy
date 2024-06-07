@@ -1,17 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "io.h"
 
-#define STDOUT "stdout"
-
 // IO Handling
-
-void loadInputFile(const char *filename, const char *extension, const char *readMode, function inputFunction) {
-    const char *fileType = strrchr(filename, '.');
-    if (!fileType || strcmp(fileType + 1, extension) != 0) {
-        fprintf(stderr, "This is not a valid .%s file: %s\n", extension, filename);
-        exit(EXIT_FAILURE);
+FILE *loadInputFile(const char *filename, const char *extension, const char *readMode)
+{
+    if (extension != NULL) { // Check if a specific extension is required
+        const char *fileType = strrchr(filename, '.');
+        if (!fileType || strcmp(fileType + 1, extension) != 0) {
+            fprintf(stderr, "This is not a valid .%s file: %s\n", extension, filename);
+            exit(EXIT_FAILURE);
+        }
     }
 
     FILE *file;
@@ -21,16 +22,17 @@ void loadInputFile(const char *filename, const char *extension, const char *read
         exit(EXIT_FAILURE);
     }
 
-    inputFunction(file);
-
-    fclose(file);
+    return file;
 }
 
-void writeOutputFile(const char *filename, const char *extension, const char *writeMode, function outputFunction) {
-    const char *fileType = strrchr(filename, '.');
-    if (strcmp(filename, STDOUT) != 0 && (!fileType || strcmp(fileType + 1, extension) != 0)) {
-        fprintf(stderr, "This is not a valid .%s file: %s\n", extension, filename);
-        exit(EXIT_FAILURE);
+FILE *openOutputFile(const char *filename, const char *extension, const char *writeMode)
+{
+    if (extension != NULL) { // Check if a specific extension is required
+        const char *fileType = strrchr(filename, '.');
+        if (strcmp(filename, STDOUT) != 0 && (!fileType || strcmp(fileType + 1, extension) != 0)) {
+            fprintf(stderr, "This is not a valid .%s file: %s\n", extension, filename);
+            exit(EXIT_FAILURE);
+        }
     }
     
     FILE *file;
@@ -40,15 +42,29 @@ void writeOutputFile(const char *filename, const char *extension, const char *wr
         exit(EXIT_FAILURE);
     }
 
-    // Perform actions with the input file
-    outputFunction(file);
+    return file;
+}
 
+// Error Checking
+void checkError(bool error)
+{
+    if (error) {
+        exit(EXIT_FAILURE);
+    }
+}
+
+void checkErrorOutput(FILE *file)
+{
     if (ferror(file)) {
         perror("Error ocurred writing to the output.\n");
         exit(EXIT_FAILURE);
     }
+}
 
-    if (file != stdout) {
-        fclose(file);
-    }
+// Close files
+void closeFiles(FILE *input, FILE *output)
+{
+    fclose(input);
+    checkErrorOutput(output);
+    fclose(output);
 }

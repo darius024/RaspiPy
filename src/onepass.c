@@ -1,19 +1,25 @@
-#include "datatypes_as.h"
-
+#include <assert.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include "constants.h"
 #include "datatypes_as.h"
 #include "instructions.h"
+#include "onepass.h"
 #include "utils_as.h"
 
-extern uint32_t binaryInstr;
-extern size_t PC;
 
-void handleUndefLabel(int i)
+extern uint32_t binaryInstr[NUM_INSTRS];
+extern int PC;
+
+// Complete the instruction with the field necessary
+static void handleUndefLabel(int i)
 {
-    struct undefTable *entry = (struct undefTable *)getFromVector(undeftable, i);
+    struct undefTable *entry = getFromVector(undeftable, i);
     uint32_t instruction = binaryInstr[entry->PC];
 
-    int literal = getLiteral(entry->label);
-    int offset = (literal - entry->PC) >> 2;
+    int literal = getLiteral(entry->label, symtable);
+    int offset = (literal - entry->PC * INSTR_BYTES) / INSTR_BYTES;
 
     switch (entry->type) {
         case ll: // Load Literal
@@ -26,25 +32,24 @@ void handleUndefLabel(int i)
             putBits(&instruction, &offset, B_SIMM26_OFFSET, B_SIMM26_LEN);
             break;
     }
-
     binaryInstr[entry->PC] = instruction;
 }
 
-// Iterates through vector to handle all the undefined lables
-void handleUndefTable()
+// Iterates through all the undefined lables and completes the instructions
+void handleUndefTable(void)
 {
     for (int i = 0; i < undeftable->currentSize; i++) {
         handleUndefLabel(i);
     }
 }
 
+// Update information about the instructions that need to be revised
 void updateUndefTable(enum undefType type, char *labelName)
 {
-    struct undefTable *newEntry = (struct undefTable *)malloc(sizeof(struct undefTable));
-    
+    struct undefTable *newEntry = malloc(sizeof(struct undefTable));
+    assert(newEntry != NULL);
     newEntry->PC = PC;
     newEntry->type = type;
     strcpy(newEntry->label, labelName);
-
     addToVector(undeftable, newEntry);
 }

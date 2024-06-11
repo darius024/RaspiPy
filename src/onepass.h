@@ -1,20 +1,18 @@
+// Data types and functions to handle one-pass for the assembler
+
 #ifndef ONEPASS_H
 #define ONEPASS_H
 
 #include <stdint.h>
-
+#include "constants.h"
 #include "vector.h"
 
-#define BUFFER_LENGTH 200
-#define MAX_INSTRS 200
-#define NUM_TOKENS 5
-#define MAX_TOKEN_LENGTH 20
 
-// Enum type for possible undefined label cases
+// Types of possible undefined label cases
 enum undefType {
-    ll, // load literal 0
-    bu, // branch unconditional 1 
-    bc  // branch conditional 2
+    ll, // load literal
+    bu, // branch unconditional
+    bc  // branch conditional
  };
 
 // One Pass structure
@@ -24,10 +22,10 @@ struct undefTable {
     enum undefType type;
 };
 
-
 // Prototypes
 extern vector *undeftable;
 extern vector *symtable;
+extern void handleUndefTable(void);
 extern void updateUndefTable(enum undefType type, char *labelName);
 
 #endif

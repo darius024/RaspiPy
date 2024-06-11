@@ -1,8 +1,14 @@
+// Struct data types for the entire program
+
+#ifndef STRUCTS_H
+#define STRUCTS_H
+
 #include <stdint.h>
 #include <stdbool.h>
 
 #define MAX_TOKEN_LENGTH 20
 #define NUM_TOKENS 5
+
 
 // Specific ADTs
 
@@ -60,12 +66,17 @@ struct SDT {
             bool l;       // type of data transfer
             bool offmode; // 1 - register offset, 0 - pre/post-index
             union {
-                uint8_t xm;
-                struct {
+                struct { // register offset
+                    uint8_t xm;
+                    uint8_t roff1; // not used in this subset
+                    uint8_t roff2; // not used in this subset
+                };
+                struct { // pre/post-index
                     int16_t simm9;
                     bool i;
+                    bool bit; // not used in this subset
                 };
-                uint16_t imm12;
+                uint16_t imm12; // unsigned offset
             };
             uint8_t xn;
         };
@@ -74,13 +85,17 @@ struct SDT {
     uint8_t rt; // target register
 };
 
-// branch
+// Branch
 struct B {
     uint8_t type; // 0 - unconditional, 1 - conditional, 3 - register
     union {
-        int32_t simm26;
-        uint8_t xn;
-        struct {
+        int32_t simm26; // unconditional
+        struct { // register
+            bool bit;
+            uint8_t reg; // not used in this subset
+            uint8_t xn;
+        };
+        struct { // conditiona;
             int32_t simm19;
             struct {
                 uint8_t tag; // encoding of mnemonic
@@ -96,7 +111,7 @@ typedef enum {
     isDPI, // Data processing immediate
     isDPR, // Data processing register
     isSDT, // Single data transfer
-    isB,   // Branch
+    isB    // Branch
 } InstructionType;
 
 typedef struct {
@@ -109,21 +124,9 @@ typedef struct {
     };
 } Instruction;
 
-typedef struct
-{
-    enum type type;
-    int numTokens;
-    char *tokens[NUM_TOKENS];
-    char instrname[MAX_TOKEN_LENGTH];
-    char buff[BUFFER_LENGTH];
-} InstructionParse;
 
-
-// Malloc / Free Functions
-extern Instruction *initializeInstruction();
-
+// Prototypes
+extern Instruction *initializeInstruction(void);
 extern void freeInstruction(Instruction *instruction);
 
-extern InstructionParse *initializeInstructionParse();
-
-extern void freeInstructionParse(InstructionParse *instr);
+#endif

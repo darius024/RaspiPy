@@ -1,14 +1,12 @@
-#include <stdint.h>
-#include <stdbool.h>
+// Execution functions used to apply changes to the global state
 
-// Execute Functions
+#ifndef EXECUTE_H
+#define EXECUTE_H
 
-extern struct EmulatorState state;
+#include "structs.h"
 
-extern int executeDPI(Instruction instruction);
 
-extern int executeDPR(Instruction instruction);
+// Prototypes
+extern int execute(Instruction instruction);
 
-extern int executeSDT(Instruction instruction);
-
-extern int executeB(Instruction instruction);
+#endif

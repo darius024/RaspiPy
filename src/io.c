@@ -1,8 +1,9 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
-
+#include <string.h>
 #include "io.h"
+
 
 // IO Handling
 FILE *loadInputFile(const char *filename, const char *extension, const char *readMode)
@@ -21,7 +22,6 @@ FILE *loadInputFile(const char *filename, const char *extension, const char *rea
         perror("Could not open input file.");
         exit(EXIT_FAILURE);
     }
-
     return file;
 }
 
@@ -41,7 +41,6 @@ FILE *openOutputFile(const char *filename, const char *extension, const char *wr
         perror("Could not open output file.\n");
         exit(EXIT_FAILURE);
     }
-
     return file;
 }
 
@@ -61,7 +60,7 @@ void checkErrorOutput(FILE *file)
     }
 }
 
-// Close files
+// File Close
 void closeFiles(FILE *input, FILE *output)
 {
     fclose(input);

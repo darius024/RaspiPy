@@ -3,24 +3,18 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
-
 #include "constants.h"
 #include "datatypes_em.h"
 #include "decoders.h"
 #include "execute.h"
-#include "instructions.h"
 #include "io.h"
 #include "utils_em.h"
 
+
 // Emulator State
-extern struct EmulatorState state;
+struct EmulatorState state;
 
-// Utility Functions
-void updatePC(void)
-{
-    state.PC += INSTR_BYTES;
-}
-
+// Initialize the state
 void initializeState(void)
 {
     memset(&state, 0, sizeof(struct EmulatorState));
@@ -30,9 +24,9 @@ void initializeState(void)
 //
 // Pipeline Stages
 //
-uint32_t fetch(uint32_t addr)
+// Fetch instruction from memory
+static uint32_t fetch(uint32_t addr)
 {
-    // Fetch instruction from memory
     uint32_t result = 0;
     for (int i = 0; i < INSTR_BYTES; i++) {
         result |= ((uint32_t)state.mem[addr + i]) << (BYTE_SIZE * i);
@@ -41,37 +35,19 @@ uint32_t fetch(uint32_t addr)
     return result;
 }
 
-int execute(Instruction instruction)
-{
-    switch (instruction.instructionType) {
-        case isDPI:
-            return executeDPI(instruction);
-        case isDPR:
-            return executeDPR(instruction);
-        case isSDT:
-            return executeSDT(instruction);
-        case isB:
-            return executeB(instruction);
-        default:
-            perror("Unsupported instruction type.\n");
-            return EXIT_FAILURE;
-    }
-}
-
 //
 // IO Handling
 //
-void readToMemory(FILE *file)
+static void readToMemory(FILE *file)
 {
     size_t numberOfBytes = fread(state.mem, 1, MEMORY_SIZE, file);
     if (numberOfBytes == 0) {
-        perror("The file is empty.");
         fclose(file);
-        exit(EXIT_FAILURE);
+        EXIT_PROGRAM("The file is empty.");
     }
 }
 
-void writeFinalState(FILE *file)
+static void writeFinalState(FILE *file)
 {
     fprintf(file, "Registers:\n");
     for (int i = 0; i < NUM_OF_REGISTERS; i++) {
@@ -101,10 +77,9 @@ int main(int argc, char **argv)
     char *outputFile;
     if (argc >= 2) {
         inputFile = argv[1];
-        outputFile = (argc > 2) ? argv[2] : SDTOUT;
+        outputFile = (argc > 2) ? argv[2] : STDOUT;
     } else {
-        perror("Provide at least an input file.\n");
-        exit(EXIT_FAILURE);
+        EXIT_PROGRAM("Provide at least an input file.");
     }
 
     // Set up initial state
@@ -115,12 +90,13 @@ int main(int argc, char **argv)
     Instruction *instruction = initializeInstruction();
 
     // Store instructions into memory
-    FILE *input = loadInputFile(inputFile, "bin", "rb");
+    FILE *input = loadInputFile(inputFile, NULL, "rb");
     readToMemory(input);
 
     while ((instr = fetch(state.PC)) != HALT_INSTR) {
         int decodeError = decode(&instr, instruction, getBits);
         checkError(decodeError);
+
         int executeError = execute(*instruction);
         checkError(executeError);
     }
@@ -129,7 +105,7 @@ int main(int argc, char **argv)
     freeInstruction(instruction);
 
     // Write the final state after executing all instructions
-    FILE *output = openOutputFile(outputFile, "out", "w");
+    FILE *output = openOutputFile(outputFile, NULL, "w");
     writeFinalState(output);
 
     // Close files

@@ -1,4 +1,7 @@
-// Header file with instructions for decoders
+// Constants for the instruction subset
+
+#ifndef INSTRUCTIONS_H
+#define INSTRUCTIONS_H
 
 #define OP0_OFFSET 25
 #define OP0_LEN 4
@@ -41,7 +44,7 @@
 #define DPR_SHIFT_OFFSET 22
 #define DPR_N_OFFSET 21
 
-#define DPR_OPR_OFFSET 31
+#define DPR_OPR_OFFSET 21
 #define DPR_X_OFFSET 15
 #define DPR_RA_OFFSET 10
 
@@ -64,6 +67,7 @@
 
 #define SDT_MODE_OFFSET 31
 #define SDT_SF_OFFSET 30
+#define SDT_MODE_OFFSET2 29
 #define SDT_RT_OFFSET 0
 
 #define SDT_U_OFFSET 24
@@ -75,13 +79,17 @@
 
 #define SDT_IMM9_OFFSET 12
 #define SDT_I_OFFSET 11
+#define SDT_BIT_OFFSET 10
 
 #define SDT_XM_OFFSET 16
+#define SDT_ROFF1_OFFSET 13
+#define SDT_ROFF2_OFFSET 10
 
 #define SDT_SIMM19_OFFSET 5
 
 #define SDT_MODE_LEN 1
 #define SDT_SF_LEN 1
+#define SDT_MODE_LEN2 1
 #define SDT_RT_LEN 5
 
 #define SDT_U_LEN 1
@@ -93,8 +101,11 @@
 
 #define SDT_IMM9_LEN 9
 #define SDT_I_LEN 1
+#define SDT_BIT_LEN 1
 
 #define SDT_XM_LEN 5
+#define SDT_ROFF1_LEN 2
+#define SDT_ROFF2_LEN 2
 
 #define SDT_SIMM19_LEN 19
 
@@ -107,6 +118,8 @@
 #define B_TAG_OFFSET 1
 #define B_NEG_OFFSET 0
 
+#define B_BIT_OFFSET 25
+#define B_REG_OFFSET 16
 #define B_XN_OFFSET 5
 
 #define B_TYPE_LEN 2
@@ -117,4 +130,8 @@
 #define B_TAG_LEN 3
 #define B_NEG_LEN 1
 
+#define B_BIT_LEN 1
+#define B_REG_LEN 5
 #define B_XN_LEN 5
+
+#endif

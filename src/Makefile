@@ -7,55 +7,40 @@ CFLAGS  = -std=c17 -g\
 
 .PHONY: all clean
 
-all: assemble emulate
-
-assemble: assemble.o
-decoders.o: decoders.c constants.h decoders.h instructions.h structs.h utils_em.h
-emulate: emulate.o decoders.o io.o utils_em.o
-emulate.o: emulate.c constants.h decoders.h instructions.h io.h structs.h utils_em.h
-io.o: io.c io.h
-utils_em.o: utils_em.c
-
-
-LDFLAGS = -lm
-
-SRC_FILES := assemble.c \
-             disassembler.c \
-             utils.c \
-	     emulate.c 
-
 # Object files
-ASSEMBLE_OBJS = assemble.o disassembler.o utils.o vector.o
-EMULATE_OBJS = emulate.o
+EMULATE_OBJS = emulate.o decoders.o execute.o io.o structs.o utils_em.o
+ASSEMBLE_OBJS = assemble.o datatypes_as.o decoders.o disassembler.o io.o onepass.o structs.o utils_as.o vector.o utils_em.o
 
-# Target executables
-EMULATE = emulate
-ASSEMBLE = assemble
-
-# Default target
-.PHONY: all disassembler utils
-all: $(EMULATE) $(ASSEMBLE)
-
-
-# Rule to build the target executable file
-# It uses the linker to combine all object files
-
-$(ASSEMBLE): $(ASSEMBLE_OBJS)
-	$(CC) $(ASSEMBLE_OBJS) -o $(ASSEMBLE) $(LDFLAGS)
+all: emulate assemble
 
 # Rule to build the emulate executable
-$(EMULATE): $(EMULATE_OBJS)
-	$(CC) $(EMULATE_OBJS) -o $(EMULATE) $(LDFLAGS)
+emulate: $(EMULATE_OBJS)
+	$(CC) $(EMULATE_OBJS) -o emulate
+
+# Rule to build the assemble executable
+assemble: $(ASSEMBLE_OBJS)
+	$(CC) $(ASSEMBLE_OBJS) -o assemble
+
+# Rules to build the object files
+assemble.o:     constants.h datatypes_as.h decoders.h disassembler.h io.h onepass.h structs.h utils_as.h vector.h
+datatypes_as.o: datatypes_as.h
+decoders.o:     constants.h decoders.h instructions.h structs.h utils_em.h
+disassembler.o: constants.h datatypes_as.h disassembler.h onepass.h structs.h utils_as.h vector.h
+emulate.o:      constants.h datatypes_em.h decoders.h execute.h io.h structs.h utils_em.h
+execute.o:      constants.h datatypes_em.h execute.h structs.h utils_em.h
+io.o:   	io.h
+onepass.o:      constants.h datatypes_as.h instructions.h onepass.h utils_as.h vector.h
+structs.o:      structs.h
+utils_as.o:     constants.h datatypes_as.h utils_as.h vector.h
+utils_em.o:     utils_em.h
+vector.o:       vector.h
 
 # Pattern rule to compile .c files to .o files
-# This rule applies to any .c file to generate the corresponding .o file
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # Clean rule to remove generated files
-# This helps to clean up the directory by removing object files and the combined object file
-.PHONY: clean
 clean:
-	$(RM) $(ASSEMBLE_OBJS) $(EMULATE_OBJS) $(ASSEMBLE) $(EMULATE)
+	$(RM) $(EMULATE_OBJS) $(ASSEMBLE_OBJS) all
 
 

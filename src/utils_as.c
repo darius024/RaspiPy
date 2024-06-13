@@ -1,15 +1,16 @@
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
-#include <stdint.h>
-
+#include "constants.h"
 #include "datatypes_as.h"
 #include "utils_as.h"
-#include "vector.h"
 
-// Utility Tools For Assembler
 
+//
+// Token Manipulation Helpers
+//
 // Decode 32-bit (0) or 64-bit mode (1)
 int getMode(char *rd)
 {
@@ -19,12 +20,11 @@ int getMode(char *rd)
 // Decode from hex or dec to int
 int getInt(char *val)
 {
-    // Check if value is in hex or dec and parse it
     char *endptr;
-    if (strcasechr(val, 'x') != NULL) {
+    if (strchr(val, 'x') != NULL) {
         return (int)strtol(val, &endptr, 16); // hex
     }
-    return (int)strtol(val, &endptr, 10);     // dec
+    return (int)strtol(val, &endptr, 10); // dec
 }
 
 // Read immediate value
@@ -37,17 +37,10 @@ int getImmediate(char *imm)
 int getRegister(char *rd)
 {
     char *p = rd + 1; // remove 'w' or 'x'
-    if (!strncasecmp(p, "sp", 2) || !strncasecmp(p, "zr", 2)) {
+    if (!strncasecmp(p, RSP, 2) || !strncasecmp(p, RZR, 2)) {
         return ZR_SP;
     }
     return atoi(p);
-}
-
-// Decode <operand>
-int getOperand(char *op, bool rOrImm)
-{
-    // 0 for register, 1 for immediate
-    return (rOrImm) ? getImmediate(op) : getRegister(op);
 }
 
 // Decode <literal>
@@ -65,6 +58,7 @@ int getLiteral(char *literal, vector *symtable)
             return symtableEntry->address;
         }
     }
+
     // Label not found
     return INT32_MIN;
 }
@@ -73,39 +67,81 @@ int getLiteral(char *literal, vector *symtable)
 int getShift(char *shift)
 {
     // Cases: lsl - 00, lsr - 01, asr - 10, ror - 11
-    for (int i = 0; i < 4; i++)
-    {
+    for (int i = 0; i < SHIFTS_SIZE; i++) {
         if (strcasecmp(shift, shifts[i]) == 0) {
             return i;
         }
     }
-    perror("Shift mode not supported.\n");
-    exit(EXIT_FAILURE);
+    EXIT_PROGRAM("Shift mode not supported.");
 }
 
-// Get a mask with 1s between the parameters (inclusive) and 0 everywhere else
-int maskBetweenBits(int upp, int low)
+//
+// Type Decoding Helpers
+//
+// Retrieve the type of instruction of an assembly line
+enum type identifyType(char *instrname)
 {
-    return ((1 << (upp + 1)) - 1) ^ ((1 << low) - 1);
+    if (strchr(instrname, LABEL_ID) != NULL) { // Label
+        return lb;
+    }
+    if (checkWordInArray(instrname, directive, DIRECTIVE_SIZE)) { // Directive
+        return dir;
+    }
+    if (checkWordInArray(instrname, aliases, ALIASES_SIZE)) { // Alias
+        return als;
+    }
+    if (checkWordInArray(instrname, branching, BRANCHING_SIZE)) { // Branching
+        return b;
+    }
+    if (checkWordInArray(instrname, loadAndStore, LOAD_AND_STORE_SIZE)) { // Load / Stores
+        return ls;
+    }
+    if (checkWordInArray(instrname, dataProcessing, DATA_PROCESSING_SIZE)) { // Data Processing
+        return dp;
+    }
+    EXIT_PROGRAM("Unsupported instruction name (mnemonic).");
 }
 
-// Checks if operation includes an immediate value or register for operand
-enum dpType getOpType(char **tokens)
+// Checks if operation includes an immediate value or register as operand
+enum dpType getOpType(char **tokens, int numTokens)
 {
-    if (*tokens[2] == '#') {
+    if (*tokens[2] == '#' || numTokens < 3 || strcasecmp(tokens[2], shifts[0]) == 0) {
         return imm;
     }
     return reg;
 }
 
-// Shifts all tokens from a position, inserting new token at vacant position
-void insertNewToken(char **tokens, char *insertingToken, int numTokens, int index)
+//
+// Binary Handling Helpers
+//
+// Puts least nbits of value in instr at position start
+void putBits(uint32_t *instr, void *value, int start, int nbits)
 {
-    assert(numTokens < NUM_TOKENS);
-    for (int i = numTokens; i > index; i--) {
+    uint32_t mask = ((1 << nbits) - 1);
+    *instr &= ~(mask << start); // clear specified bits
+    if (nbits == 1) {
+        *instr |= (*(bool *)value & mask) << start;
+    } else if (nbits <= 8) {
+        *instr |= (*(uint8_t *)value & mask) << start;
+    } else if (nbits <= 16) {
+        *instr |= (*(uint16_t *)value & mask) << start;
+    } else {
+        *instr |= (*(uint32_t *)value & mask) << start;
+    }
+}
+
+//
+// Array Insert / Look-Up Helpers
+//
+// Shifts all tokens from a position, inserting new token at vacant position
+void insertNewToken(char **tokens, char *insertingToken, int *numTokens, int index)
+{
+    assert(*numTokens < NUM_TOKENS);
+    for (int i = *numTokens; i > index; i--) {
         strcpy(tokens[i], tokens[i - 1]);
     }
     strcpy(tokens[index], insertingToken);
+    (*numTokens)++;
 }
 
 int getPositionInArray(char *word, const char **words, int num)
@@ -123,28 +159,29 @@ bool checkWordInArray(char *word, const char **words, int num)
     return (getPositionInArray(word, words, num) != NOT_FOUND);
 }
 
-void setOnes(uint32_t *instruction, const int *bits, int num)
+//
+// Malloc / Free struct
+//
+InstructionParse *initializeInstructionParse(void)
 {
-    for (int i = 0; i < num; i++) {
-        *instruction |= 1 << bits[i];
+    InstructionParse *instr = (InstructionParse *)malloc(sizeof(InstructionParse));
+    // Allocate memory for tokens
+    for (int i = 0; i < NUM_TOKENS; i++) {
+        instr->tokens[i] = (char *)malloc((MAX_TOKEN_LENGTH + 1) * sizeof(char));
+        if (instr->tokens[i] == NULL) {
+            for (int j = 0; j < i; j++) {
+                free(instr->tokens[j]);
+            }
+            EXIT_PROGRAM("Failed to allocate space for tokens.");
+        }
     }
+    return instr;
 }
 
-bool hasOpenBracket(char *token)
+void freeInstructionParse(InstructionParse *instructionParse)
 {
-    return (strchr(token, '[') != NULL);
-}
-
-void putBits(uint32_t *instr, void *value, int start, int nbits)
-{
-    uint32_t mask = ((1 << nbits) - 1);
-    if (nbits == 1) {
-        *instr |= (*(bool *)value & mask) << start;
-    } else if (nbits <= 8) {
-        *instr |= (*(uint8_t *)value & mask) << start;
-    } else if (nbits <= 16) {
-        *instr |= (*(uint16_t *)value & mask) << start;
-    } else {
-        *instr |= (*(uint32_t *)value & mask) << start;
+    for (int i = 0; i < NUM_TOKENS; i++) {
+        free(instructionParse->tokens[i]);
     }
+    free(instructionParse);
 }

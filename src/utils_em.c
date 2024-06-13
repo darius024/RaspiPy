@@ -1,9 +1,9 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include "utils_em.h"
 
 #define MASK32 0xFFFFFFFFLL
 
-// Utilities for the emulator
 
 void getBits(uint32_t *instr, void *value, int start, int nbits) {
     uint32_t mask = ((1 << nbits) - 1) << start;

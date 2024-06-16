@@ -3,7 +3,7 @@
 This is a brief description of the extension so far.
 
 
-# JIT Compiler for the subset provided in C
+# JIT Compiler for Python subset provided in C, assembled in ARM
 Tasks:
 1. Use lex and yacc to build the lexer and parser
 2. Built the intermediate (internal) representation (IR)

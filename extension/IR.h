@@ -8,7 +8,7 @@
 #define MAX_NAME 16
 #define MAX_VAR 64
 #define MAX_FUNC 16
-#define MAX_INSTR 256
+#define MAX_HOTSPOTS 10
 
 typedef enum {
     IR_ADD,
@@ -41,7 +41,7 @@ typedef struct IRInstruction {
     IRType type;
     int dest;
     int src1;
-    int src2;   
+    int src2;
     int src3;
     int line;
     int count;
@@ -53,13 +53,22 @@ typedef struct {
     int64_t value;
 } Entry;
 
+typedef struct {
+    int lineNum;
+    uint32_t  instr;
+} HotMap;
+
+typedef struct {
+    Entry map[MAX_VAR];
+    Entry funcs[MAX_FUNC];
+} state;
+
 typedef struct IRProgram {
     IRInstruction *head;
     IRInstruction *tail;
-    Entry map[MAX_VAR];
-    Entry funcs[MAX_FUNC];
+    state programState;
     int64_t directives[MAX_DIR];
-    uint32_t instructions[MAX_INSTR];
+    HotMap hotspots[MAX_HOTSPOTS]
 } IRProgram;
 
 #endif

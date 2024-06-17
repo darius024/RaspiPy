@@ -54,25 +54,25 @@ extern int yydebug;
     YYEOF = 0,                     /* "end of file"  */
     YYerror = 256,                 /* error  */
     YYUNDEF = 257,                 /* "invalid token"  */
-    AND = 258,                     /* AND  */
-    BREAK = 259,                   /* BREAK  */
-    CONTINUE = 260,                /* CONTINUE  */
-    DEF = 261,                     /* DEF  */
-    ELIF = 262,                    /* ELIF  */
-    ELSE = 263,                    /* ELSE  */
-    FALSE = 264,                   /* FALSE  */
-    FOR = 265,                     /* FOR  */
-    GLOBAL = 266,                  /* GLOBAL  */
-    IF = 267,                      /* IF  */
-    IN = 268,                      /* IN  */
-    NOT = 269,                     /* NOT  */
-    OR = 270,                      /* OR  */
-    RETURN = 271,                  /* RETURN  */
-    TRUE = 272,                    /* TRUE  */
-    WHILE = 273,                   /* WHILE  */
-    DEC_INTEGER = 274,             /* DEC_INTEGER  */
-    HEX_INTEGER = 275,             /* HEX_INTEGER  */
-    NAME = 276,                    /* NAME  */
+    DEC_INTEGER = 258,             /* DEC_INTEGER  */
+    HEX_INTEGER = 259,             /* HEX_INTEGER  */
+    NAME = 260,                    /* NAME  */
+    AND = 261,                     /* AND  */
+    BREAK = 262,                   /* BREAK  */
+    CONTINUE = 263,                /* CONTINUE  */
+    DEF = 264,                     /* DEF  */
+    ELIF = 265,                    /* ELIF  */
+    ELSE = 266,                    /* ELSE  */
+    FALSE = 267,                   /* FALSE  */
+    FOR = 268,                     /* FOR  */
+    GLOBAL = 269,                  /* GLOBAL  */
+    IF = 270,                      /* IF  */
+    IN = 271,                      /* IN  */
+    NOT = 272,                     /* NOT  */
+    OR = 273,                      /* OR  */
+    RETURN = 274,                  /* RETURN  */
+    TRUE = 275,                    /* TRUE  */
+    WHILE = 276,                   /* WHILE  */
     L_PAREN = 277,                 /* L_PAREN  */
     R_PAREN = 278,                 /* R_PAREN  */
     COMMA = 279,                   /* COMMA  */
@@ -116,25 +116,25 @@ extern int yydebug;
 #define YYEOF 0
 #define YYerror 256
 #define YYUNDEF 257
-#define AND 258
-#define BREAK 259
-#define CONTINUE 260
-#define DEF 261
-#define ELIF 262
-#define ELSE 263
-#define FALSE 264
-#define FOR 265
-#define GLOBAL 266
-#define IF 267
-#define IN 268
-#define NOT 269
-#define OR 270
-#define RETURN 271
-#define TRUE 272
-#define WHILE 273
-#define DEC_INTEGER 274
-#define HEX_INTEGER 275
-#define NAME 276
+#define DEC_INTEGER 258
+#define HEX_INTEGER 259
+#define NAME 260
+#define AND 261
+#define BREAK 262
+#define CONTINUE 263
+#define DEF 264
+#define ELIF 265
+#define ELSE 266
+#define FALSE 267
+#define FOR 268
+#define GLOBAL 269
+#define IF 270
+#define IN 271
+#define NOT 272
+#define OR 273
+#define RETURN 274
+#define TRUE 275
+#define WHILE 276
 #define L_PAREN 277
 #define R_PAREN 278
 #define COMMA 279
@@ -179,9 +179,25 @@ union YYSTYPE
 
     int num;
     char *str;
-    ASTNode *node;
+    Program *program;
+    Statements *statements;
+    Statement *statement;
+    AssignmentStmt *assignment_stmt;
+    FlowStmt *flow_stmt;
+    IfStmt *if_stmt;
+    WhileStmt *while_stmt;
+    ForStmt *for_stmt;
+    FunctionDef *function_def;
+    Parameters *parameters;
+    Arguments *arguments;
+    Expression *expression;
+    Name *name;
+    Int *int_value;
+    BinaryOp *binary_op;
+    UnaryOp *unary_op;
+    FunctionCall *function_call;
 
-#line 185 "y.tab.h"
+#line 201 "y.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

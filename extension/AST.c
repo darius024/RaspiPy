@@ -1,315 +1,335 @@
 #include "AST.h"
-#include <stdlib.h>
-#include <string.h>
 
-// Creation functions
-Program *create_program_node(FuncDef *func_defs, Stmts *stmts) {
-    Program *node = (Program *)malloc(sizeof(Program));
-    node->func_defs = func_defs;
-    node->stmts = stmts;
-    return node;
+// Create functions
+Program *create_program(Statements *statements) {
+    Program *program = (Program *)malloc(sizeof(Program));
+    program->statements = statements;
+    return program;
 }
 
-FuncDef *create_func_def_node(char *name, ParamList *param_list, Stmts *block) {
-    FuncDef *node = (FuncDef *)malloc(sizeof(FuncDef));
-    node->name = strdup(name);
-    node->param_list = param_list;
-    node->block = block;
-    return node;
+Statements *create_statements(Statement *statement, Statements *next) {
+    Statements *statements = (Statements *)malloc(sizeof(Statements));
+    statements->statement = statement;
+    statements->next = next;
+    return statements;
 }
 
-FuncCall *create_func_call_node(char *name, ExprList *expr_list) {
-    FuncCall *node = (FuncCall *)malloc(sizeof(FuncCall));
-    node->name = strdup(name);
-    node->expr_list = expr_list;
-    return node;
-}
-
-ParamList *create_param_list_node(ParamList *params, char *name) {
-    ParamList *node = (ParamList *)malloc(sizeof(ParamList));
-    node->params = params;
-    node->name = strdup(name);
-    return node;
-}
-
-Stmts *create_stmts_node(Stmts *stmts, Stmt *stmt) {
-    Stmts *node = (Stmts *)malloc(sizeof(Stmts));
-    node->stmts = stmts;
-    node->stmt = stmt;
-    return node;
-}
-
-Stmt *create_assignment_stmt_node(char *name, Expr *expr) {
-    AssignmentStmt *assign_stmt = (AssignmentStmt *)malloc(sizeof(AssignmentStmt));
-    assign_stmt->name = strdup(name);
-    assign_stmt->expr = expr;
-
-    Stmt *stmt = (Stmt *)malloc(sizeof(Stmt));
-    stmt->tag = is_assignment_stmt;
-    stmt->assign_stmt = assign_stmt;
-    return stmt;
-}
-
-Stmt *create_flow_stmt_node(char *name) {
-    FlowStmt *flow_stmt = (FlowStmt *)malloc(sizeof(FlowStmt));
-    flow_stmt->name = strdup(name);
-
-    Stmt *stmt = (Stmt *)malloc(sizeof(Stmt));
-    stmt->tag = is_flow_stmt;
-    stmt->flow_stmt = flow_stmt;
-    return stmt;
-}
-
-Stmt *create_if_stmt_node(Test *test, Stmts *then_block, Stmts *else_block) {
-    IfStmt *if_stmt = (IfStmt *)malloc(sizeof(IfStmt));
-    if_stmt->test = test;
-    if_stmt->then_block = then_block;
-    if_stmt->else_block = else_block;
-
-    Stmt *stmt = (Stmt *)malloc(sizeof(Stmt));
-    stmt->tag = is_if_stmt;
-    stmt->if_stmt = if_stmt;
-    return stmt;
-}
-
-Stmt *create_while_stmt_node(Test *test, Stmts *block) {
-    WhileStmt *while_stmt = (WhileStmt *)malloc(sizeof(WhileStmt));
-    while_stmt->test = test;
-    while_stmt->block = block;
-
-    Stmt *stmt = (Stmt *)malloc(sizeof(Stmt));
-    stmt->tag = is_while_stmt;
-    stmt->while_stmt = while_stmt;
-    return stmt;
-}
-
-Stmt *create_for_stmt_node(Expr *expr, Test *test, Stmts *block) {
-    ForStmt *for_stmt = (ForStmt *)malloc(sizeof(ForStmt));
-    for_stmt->expr = expr;
-    for_stmt->test = test;
-    for_stmt->block = block;
-
-    Stmt *stmt = (Stmt *)malloc(sizeof(Stmt));
-    stmt->tag = is_for_stmt;
-    stmt->for_stmt = for_stmt;
-    return stmt;
-}
-
-Test *create_test_node(Test *left, Test *right, char *op) {
-    Test *node = (Test *)malloc(sizeof(Test));
-    node->left = left;
-    node->right = right;
-    node->op = strdup(op);
-    return node;
-}
-
-BExpr *create_bexpr_node(Expr *left, Expr *right, char *op) {
-    BExpr *node = (BExpr *)malloc(sizeof(BExpr));
-    node->left = left;
-    node->right = right;
-    node->op = strdup(op);
-    return node;
-}
-
-Expr *create_expr_node(NodeType tag, void *data) {
-    Expr *expr = (Expr *)malloc(sizeof(Expr));
-    expr->tag = tag;
+Statement *create_statement(StatementTag tag, void *stmt) {
+    Statement *statement = (Statement *)malloc(sizeof(Statement));
+    statement->tag = tag;
     switch (tag) {
-        case is_number:
-            expr->num = (Number *)data;
+        case ASSIGNMENT_STMT:
+            statement->assignment_stmt = (AssignmentStmt *)stmt;
             break;
-        case is_name:
-            expr->name = (Name *)data;
+        case FLOW_STMT:
+            statement->flow_stmt = (FlowStmt *)stmt;
             break;
-        case             is_func_call:
-            expr->func_call = (FuncCall *)data;
+        case IF_STMT:
+            statement->if_stmt = (IfStmt *)stmt;
             break;
-        case is_binary_expr:
-            expr->binary_expr = (BinaryExpr *)data;
+        case WHILE_STMT:
+            statement->while_stmt = (WhileStmt *)stmt;
             break;
-        case is_unary_expr:
-            expr->unary_expr = (UnaryExpr *)data;
+        case FOR_STMT:
+            statement->for_stmt = (ForStmt *)stmt;
+            break;
+        case FUNCTION_DEF:
+            statement->function_def = (FunctionDef *)stmt;
             break;
         default:
+            free(statement);
+            return NULL;
+    }
+    return statement;
+}
+
+AssignmentStmt *create_assignment_stmt(char *name, Expression *expression) {
+    AssignmentStmt *assignment_stmt = (AssignmentStmt *)malloc(sizeof(AssignmentStmt));
+    assignment_stmt->name = strdup(name);
+    assignment_stmt->expression = expression;
+    return assignment_stmt;
+}
+
+FlowStmt *create_flow_stmt(char *name, Expression *expression) {
+    FlowStmt *flow_stmt = (FlowStmt *)malloc(sizeof(FlowStmt));
+    flow_stmt->name = strdup(name);
+    flow_stmt->expression = expression;
+    return flow_stmt;
+}
+
+IfStmt *create_if_stmt(Expression *condition, Statements *then_block, Statements *else_block) {
+    IfStmt *if_stmt = (IfStmt *)malloc(sizeof(IfStmt));
+    if_stmt->condition = condition;
+    if_stmt->then_block = then_block;
+    if_stmt->else_block = else_block;
+    return if_stmt;
+}
+
+WhileStmt *create_while_stmt(Expression *condition, Statements *block) {
+    WhileStmt *while_stmt = (WhileStmt *)malloc(sizeof(WhileStmt));
+    while_stmt->condition = condition;
+    while_stmt->block = block;
+    return while_stmt;
+}
+
+ForStmt *create_for_stmt(char *var, Expression *range, Statements *block) {
+    ForStmt *for_stmt = (ForStmt *)malloc(sizeof(ForStmt));
+    for_stmt->var = strdup(var);
+    for_stmt->range = range;
+    for_stmt->block = block;
+    return for_stmt;
+}
+
+FunctionDef *create_function_def(char *name, Parameters *parameters, Statements *body) {
+    FunctionDef *function_def = (FunctionDef *)malloc(sizeof(FunctionDef));
+    function_def->name = strdup(name);
+    function_def->parameters = parameters;
+    function_def->body = body;
+    return function_def;
+}
+
+Parameters *create_parameters(Name *parameter, Parameters *next) {
+    Parameters *parameters = (Parameters *)malloc(sizeof(Parameters));
+    parameters->parameter = parameter;
+    parameters->next = next;
+    return parameters;
+}
+
+Arguments *create_arguments(Expression *expression, Arguments *next) {
+    Arguments *arguments = (Arguments *)malloc(sizeof(Arguments));
+    arguments->arg = expression;
+    arguments->next = next;
+    return arguments;
+}
+
+Name *create_name(char *name) {
+    Name *n = (Name *)malloc(sizeof(Name));
+    n->name = strdup(name);
+    return n;
+}
+
+Int *create_int(int64_t value) {
+    Int *i = (Int *)malloc(sizeof(Int));
+    i->value = value;
+    return i;
+}
+
+BinaryOp *create_binary_op(char *op, Expression *left, Expression *right) {
+    BinaryOp *binary_op = (BinaryOp *)malloc(sizeof(BinaryOp));
+    binary_op->op = strdup(op);
+    binary_op->left = left;
+    binary_op->right = right;
+    return binary_op;
+}
+
+UnaryOp *create_unary_op(char *op, Expression *expression) {
+    UnaryOp *unary_op = (UnaryOp *)malloc(sizeof(UnaryOp));
+    unary_op->op = strdup(op);
+    unary_op->expression = expression;
+    return unary_op;
+}
+
+FunctionCall *create_function_call(char *name, Arguments *args) {
+    FunctionCall *function_call = (FunctionCall *)malloc(sizeof(FunctionCall));
+    function_call->name = strdup(name);
+    function_call->args = args;
+    return function_call;
+}
+
+Expression *create_expression(ExpressionTag tag, void *value) {
+    Expression *expr = (Expression *)malloc(sizeof(Expression));
+    expr->tag = tag;
+    switch (tag) {
+        case EXPR_NAME:
+            expr->name = (Name *)value;
             break;
+        case EXPR_INT:
+            expr->int_value = (Int *)value;
+            break;
+        case EXPR_BINARY_OP:
+            expr->binary_op = (BinaryOp *)value;
+            break;
+        case EXPR_UNARY_OP:
+            expr->unary_op = (UnaryOp *)value;
+            break;
+        case EXPR_FUNCTION_CALL:
+            expr->function_call = (FunctionCall *)value;
+            break;
+        default:
+            free(expr);
+            return NULL;
     }
     return expr;
 }
 
-ExprList *create_expr_list_node(Expr *expr, ExprList *next) {
-    ExprList *node = (ExprList *)malloc(sizeof(ExprList));
-    node->expr = expr;
-    node->next = next;
-    return node;
-}
-
 // Free functions
-void free_program_node(Program *node) {
-    if (!node) return;
-    free_func_def_node(node->func_defs);
-    free_stmts_node(node->stmts);
-    free(node);
-}
-
-void free_func_def_node(FuncDef *node) {
-    if (!node) return;
-    free(node->name);
-    free_param_list_node(node->param_list);
-    free_stmts_node(node->block);
-    free(node);
-}
-
-void free_func_call_node(FuncCall *node) {
-    if (!node) return;
-    free(node->name);
-    free_expr_list_node(node->expr_list);
-    free(node);
-}
-
-void free_param_list_node(ParamList *node) {
-    if (!node) return;
-    free(node->name);
-    free_param_list_node(node->params);
-    free(node);
-}
-
-void free_stmts_node(Stmts *node) {
-    if (!node) return;
-    free_stmts_node(node->stmts);
-    free_stmt_node(node->stmt);
-    free(node);
-}
-
-void free_stmt_node(Stmt *node) {
-    if (!node) return;
-    switch (node->tag) {
-        case is_assignment_stmt:
-            free_assignment_stmt_node(node->assign_stmt);
-            break;
-        case is_flow_stmt:
-            free_flow_stmt_node(node->flow_stmt);
-            break;
-        case is_if_stmt:
-            free_if_stmt_node(node->if_stmt);
-            break;
-        case is_while_stmt:
-            free_while_stmt_node(node->while_stmt);
-            break;
-        case is_for_stmt:
-            free_for_stmt_node(node->for_stmt);
-            break;
-        default:
-            break;
+void free_program(Program *program) {
+    if (program) {
+        free_statements(program->statements);
+        free(program);
     }
-    free(node);
 }
 
-void free_assignment_stmt_node(AssignmentStmt *node) {
-    if (!node) return;
-    free(node->name);
-    free_expr_node(node->expr);
-    free(node);
-}
-
-void free_flow_stmt_node(FlowStmt *node) {
-    if (!node) return;
-    free(node->name);
-    free(node);
-}
-
-void free_if_stmt_node(IfStmt *node) {
-    if (!node) return;
-    free_test_node(node->test);
-    free_stmts_node(node->then_block);
-    free_stmts_node(node->else_block);
-    free(node);
-}
-
-void free_while_stmt_node(WhileStmt *node) {
-    if (!node) return;
-    free_test_node(node->test);
-    free_stmts_node(node->block);
-    free(node);
-}
-
-void free_for_stmt_node(ForStmt *node) {
-    if (!node) return;
-    free_expr_node(node->expr);
-    free_test_node(node->test);
-    free_stmts_node(node->block);
-    free(node);
-}
-
-void free_test_node(Test *node) {
-    if (!node) return;
-    free_test_node(node->left);
-    free_test_node(node->right);
-    free(node->op);
-    free(node);
-}
-
-void free_bexpr_node(BExpr *node) {
-    if (!node) return;
-    free_expr_node(node->left);
-    free_expr_node(node->right);
-    free(node->op);
-    free(node);
-}
-
-void free_expr_node(Expr *node) {
-    if (!node) return;
-    switch (node->tag) {
-        case is_number:
-            free_number_node(node->num);
-            break;
-        case is_name:
-            free_name_node(node->name);
-            break;
-        case is_func_call:
-            free_func_call_node(node->func_call);
-            break;
-        case is_binary_expr:
-            free_binary_expr_node(node->binary_expr);
-            break;
-        case is_unary_expr:
-            free_unary_expr_node(node->unary_expr);
-            break;
-        default:
-            break;
+void free_statements(Statements *statements) {
+    if (statements) {
+        free_statement(statements->statement);
+        free_statements(statements->next);
+        free(statements);
     }
-    free(node);
 }
 
-void free_expr_list_node(ExprList *node) {
-    if (!node) return;
-    free_expr_node(node->expr);
-    free_expr_list_node(node->next);
-    free(node);
+void free_statement(Statement *statement) {
+    if (statement) {
+        switch (statement->tag) {
+            case ASSIGNMENT_STMT:
+                free_assignment_stmt(statement->assignment_stmt);
+                break;
+            case FLOW_STMT:
+                free_flow_stmt(statement->flow_stmt);
+                break;
+            case IF_STMT:
+                free_if_stmt(statement->if_stmt);
+                break;
+            case WHILE_STMT:
+                free_while_stmt(statement->while_stmt);
+                break;
+            case FOR_STMT:
+                free_for_stmt(statement->for_stmt);
+                break;
+            case FUNCTION_DEF:
+                free_function_def(statement->function_def);
+                break;
+        }
+        free(statement);
+    }
 }
 
-void free_binary_expr_node(BinaryExpr *node) {
-    if (!node) return;
-    free_expr_node(node->left);
-    free_expr_node(node->right);
-    free(node->op);
-    free(node);
+void free_assignment_stmt(AssignmentStmt *assignment_stmt) {
+    if (assignment_stmt) {
+        free(assignment_stmt->name);
+        free_expression(assignment_stmt->expression);
+        free(assignment_stmt);
+    }
 }
 
-void free_unary_expr_node(UnaryExpr *node) {
-    if (!node) return;
-    free_expr_node(node->expr);
-    free(node->op);
-    free(node);
+void free_flow_stmt(FlowStmt *flow_stmt) {
+    if (flow_stmt) {
+        free(flow_stmt->name);
+        free_expression(flow_stmt->expression);
+        free(flow_stmt);
+    }
 }
 
-void free_name_node(Name *node) {
-    if (!node) return;
-    free(node->name);
-    free(node);
+void free_if_stmt(IfStmt *if_stmt) {
+    if (if_stmt) {
+        free_expression(if_stmt->condition);
+        free_statements(if_stmt->then_block);
+        free_statements(if_stmt->else_block);
+        free(if_stmt);
+    }
 }
 
-void free_number_node(Number *node) {
-    if (!node) return;
-    free(node);
+void free_while_stmt(WhileStmt *while_stmt) {
+    if (while_stmt) {
+        free_expression(while_stmt->condition);
+        free_statements(while_stmt->block);
+        free(while_stmt);
+    }
 }
 
+void free_for_stmt(ForStmt *for_stmt) {
+    if (for_stmt) {
+        free(for_stmt->var);
+        free_expression(for_stmt->range);
+        free_statements(for_stmt->block);
+        free(for_stmt);
+    }
+}
+
+void free_function_def(FunctionDef *function_def) {
+    if (function_def) {
+        free(function_def->name);
+        free_parameters(function_def->parameters);
+        free_statements(function_def->body);
+        free(function_def);
+    }
+}
+
+void free_name(Name *name) {
+    if (name) {
+        free(name->name);
+        free(name);
+    }
+}
+
+void free_int(Int *int_value) {
+    if (int_value) {
+        free(int_value);
+    }
+}
+
+void free_binary_op(BinaryOp *binary_op) {
+    if (binary_op) {
+        free(binary_op->op);
+        free_expression(binary_op->left);
+        free_expression(binary_op->right);
+        free(binary_op);
+    }
+}
+
+void free_unary_op(UnaryOp *unary_op) {
+    if (unary_op) {
+        free(unary_op->op);
+        free_expression(unary_op->expression);
+        free(unary_op);
+    }
+}
+
+void free_function_call(FunctionCall *function_call) {
+    if (function_call) {
+        free(function_call->name);
+        free_arguments(function_call->args);
+        free(function_call);
+    }
+}
+
+void free_expression(Expression *expression) {
+    if (expression) {
+        switch (expression->tag) {
+            case EXPR_NAME:
+                free_name(expression->name);
+                break;
+            case EXPR_INT:
+                free_int(expression->int_value);
+                break;
+            case EXPR_BINARY_OP:
+                free_binary_op(expression->binary_op);
+                break;
+            case EXPR_UNARY_OP:
+                free_unary_op(expression->unary_op);
+                break;
+            case EXPR_FUNCTION_CALL:
+                free_function_call(expression->function_call);
+                break;
+        }
+        free(expression);
+    }
+}
+
+void free_parameters(Parameters *parameters) {
+    while (parameters) {
+        Parameters *next = parameters->next;
+        free_name(parameters->parameter);
+        free(parameters);
+        parameters = next;
+    }
+}
+
+void free_arguments(Arguments *arguments) {
+    while (arguments) {
+        Arguments *next = arguments->next;
+        free_expression(arguments->arg);
+        free(arguments);
+        arguments = next;
+    }
+}

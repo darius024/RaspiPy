@@ -13,7 +13,7 @@ IRProgram ast_to_ir(Program program)
 
 }
 
-IRProgram stmts_to_ir(Stmts stmts)
+IRProgram stmts_to_ir(Statements stmts)
 {
     // TODO
     // Execute a block... construct a list which we insert in the main program

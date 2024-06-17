@@ -22,30 +22,28 @@ extern int lineno;
     int num;
     char *str;
     Program *program;
-    FuncDef *func_def;
-    FuncCall *func_call;
-    ParamList *param_list;
-    Stmts *stmts;
-    Stmt *stmt;
+    Statements *statements;
+    Statement *statement;
     AssignmentStmt *assignment_stmt;
     FlowStmt *flow_stmt;
     IfStmt *if_stmt;
     WhileStmt *while_stmt;
     ForStmt *for_stmt;
-    Test *test;
-    BExpr *bexpr;
-    Expr *expr;
-    ExprList *expr_list;
-    BinaryExpr *binary_expr;
-    UnaryExpr *unary_expr;
+    FunctionDef *function_def;
+    Parameters *parameters;
+    Arguments *arguments;
+    Expression *expression;
     Name *name;
-    Number *number;
+    Int *int_value;
+    BinaryOp *binary_op;
+    UnaryOp *unary_op;
+    FunctionCall *function_call;
 }
 
-%token AND BREAK CONTINUE DEF ELIF ELSE FALSE FOR GLOBAL
-%token IF IN NOT OR RETURN TRUE WHILE
 %token <num> DEC_INTEGER HEX_INTEGER 
 %token <str> NAME
+%token AND BREAK CONTINUE DEF ELIF ELSE FALSE FOR GLOBAL
+%token IF IN NOT OR RETURN TRUE WHILE
 %token L_PAREN R_PAREN COMMA COLON SEMI_COLON ASSIGN NEG
 %token BITWISE_OR BITWISE_XOR BITWISE_AND
 %token LEFT_SHIFT RIGHT_SHIFT ADD SUB MUL DIV MOD
@@ -56,185 +54,187 @@ extern int lineno;
 %token INDENT DEDENT
 
 %type <program> program
-%type <func_def> func_def
-%type <param_list> paramlist
-%type <stmts> stmts
-%type <stmt> stmt
+%type <statements> statements block
+%type <statement> statement simple_stmt compound_stmt
 %type <assignment_stmt> assignment_stmt
-%type <flow_stmt> flow_stmt
+%type <flow_stmt> return_stmt
 %type <if_stmt> if_stmt
 %type <while_stmt> while_stmt
 %type <for_stmt> for_stmt
-%type <test> test
-%type <bexpr> bexpr
-%type <expr> expr
-%type <expr_list> exprlist
-%type <binary_expr> binary_expr
-%type <unary_expr> unary_expr
-%type <name> name
-%type <number> number
+%type <function_def> function_def
+%type <parameters> parameters
+%type <arguments> arguments
+%type <expression> expression atom
+%type <binary_op> disjunction conjunction inversion comparison bitwise_or bitwise_xor bitwise_and shift_expr sum term
+%type <unary_op> factor
+%type <function_call> function_call
+
+
+%right RETURN
 
 %start program
 
 %%
 program
-    : func_defs stmts { $$ = create_program_node($1, $2); }
+    : statements { $$ = create_program($1); }
     ;
 
-func_defs
+statements
     : /* empty */ { $$ = NULL; }
-    | func_defs func_def { $$ = $1 ? $1 : $2; }
+    | statements statement { $$ = create_statements($2, $1); }
     ;
 
-stmts
-    : /* empty */ { $$ = NULL; }
-    | stmts stmt { $$ = create_stmts_node($1, $2); }
-    ;
-
-func_def
-    : DEF NAME L_PAREN paramlist R_PAREN COLON block { $$ = create_func_def_node($2, $4, $7); }
-    ;
-
-paramlist
-    : paramlist COMMA NAME { $$ = create_param_list_node($1, $3); }
-    | NAME { $$ = create_param_list_node(NULL, $1); }
-    | /* empty */ { $$ = NULL; }
-    ;
-
-stmt
-    : simple_stmt { $$ = $1; }
-    | compound_stmt { $$ = $1; }
+statement
+    : compound_stmt { $$ = $1; }
+    | simple_stmt { $$ = $1; }
     ;
 
 simple_stmt
-    : assignment_stmt { $$ = $1; }
-    | flow_stmt { $$ = $1; }
+    : assignment_stmt { $$ = create_statement(ASSIGNMENT_STMT, $1); }
+    | return_stmt { $$ = create_statement(FLOW_STMT, $1); }
+    | BREAK { $$ = create_statement(FLOW_STMT, create_flow_stmt("break", NULL)); }
+    | CONTINUE { $$ = create_statement(FLOW_STMT, create_flow_stmt("continue", NULL)); }
     ;
 
 assignment_stmt
-    : NAME ASSIGN expr { $$ = create_assignment_stmt_node($1, $3); }
-    | NAME ADD_ASSIGN expr { $$ = create_assignment_stmt_node($1, $3); }
-    | NAME SUB_ASSIGN expr { $$ = create_assignment_stmt_node($1, $3); }
-    | NAME MUL_ASSIGN expr { $$ = create_assignment_stmt_node($1, $3); }
-    | NAME DIV_ASSIGN expr { $$ = create_assignment_stmt_node($1, $3); }
-    | NAME MOD_ASSIGN expr { $$ = create_assignment_stmt_node($1, $3); }
-    | NAME AND_ASSIGN expr { $$ = create_assignment_stmt_node($1, $3); }
-    | NAME OR_ASSIGN expr { $$ = create_assignment_stmt_node($1, $3); }
-    | NAME XOR_ASSIGN expr { $$ = create_assignment_stmt_node($1, $3); }
-    | NAME LEFT_SHIFT_ASSIGN expr { $$ = create_assignment_stmt_node($1, $3); }
-    | NAME RIGHT_SHIFT_ASSIGN expr { $$ = create_assignment_stmt_node($1, $3); }
-    ;
-
-flow_stmt
-    : break_stmt { $$ = create_flow_stmt_node("break"); }
-    | continue_stmt { $$ = create_flow_stmt_node("continue"); }
-    | return_stmt { $$ = $1; }
-    ;
-
-break_stmt
-    : BREAK { $$ = NULL; }
-    ;
-
-continue_stmt
-    : CONTINUE { $$ = NULL; }
+    : NAME ASSIGN expression { $$ = create_assignment_stmt($1, $3); }
+    | NAME ADD_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("+=", create_expression(EXPR_NAME, create_name($1)), $3)); }
+    | NAME SUB_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("-=", create_expression(EXPR_NAME, create_name($1)), $3)); }
+    | NAME MUL_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("*=", create_expression(EXPR_NAME, create_name($1)), $3)); }
+    | NAME DIV_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("/=", create_expression(EXPR_NAME, create_name($1)), $3)); }
+    | NAME MOD_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("%=", create_expression(EXPR_NAME, create_name($1)), $3)); }
+    | NAME AND_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("&=", create_expression(EXPR_NAME, create_name($1)), $3)); }
+    | NAME OR_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("|=", create_expression(EXPR_NAME, create_name($1)), $3)); }
+    | NAME XOR_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("^=", create_expression(EXPR_NAME, create_name($1)), $3)); }
+    | NAME LEFT_SHIFT_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("<<=", create_expression(EXPR_NAME, create_name($1)), $3)); }
+    | NAME RIGHT_SHIFT_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op(">>=", create_expression(EXPR_NAME, create_name($1)), $3)); }
     ;
 
 return_stmt
-    : RETURN expr { $$ = create_flow_stmt_node("return"); $$->stmt->flow_stmt->expr = $2; }
-    | RETURN { $$ = create_flow_stmt_node("return"); }
+    : RETURN expression { $$ = create_flow_stmt("return", $2); }
+    | RETURN { $$ = create_flow_stmt("return", NULL); }
     ;
 
 compound_stmt
-    : if_stmt { $$ = $1; }
-    | while_stmt { $$ = $1; }
-    | for_stmt { $$ = $1; }
+    : if_stmt { $$ = create_statement(IF_STMT, $1); }
+    | while_stmt { $$ = create_statement(WHILE_STMT, $1); }
+    | for_stmt { $$ = create_statement(FOR_STMT, $1); }
+    | function_def { $$ = create_statement(FUNCTION_DEF, $1); }
     ;
 
 if_stmt
-    : IF test COLON block ELSE COLON block { $$ = create_if_stmt_node($2, $4, $7); }
-    | IF test COLON block { $$ = create_if_stmt_node($2, $4, NULL); }
+    : IF expression COLON block ELSE COLON block { $$ = create_if_stmt($2, $4, $7); }
+    | IF expression COLON block { $$ = create_if_stmt($2, $4, NULL); }
     ;
 
 while_stmt
-    : WHILE test COLON block { $$ = create_while_stmt_node($2, $4); }
+    : WHILE expression COLON block { $$ = create_while_stmt($2, $4); }
     ;
 
 for_stmt
-    : FOR expr IN test COLON block { $$ = create_for_stmt_node($2, $4, $6); }
+    : FOR NAME IN expression COLON block { $$ = create_for_stmt($2, $4, $6); }
+    ;
+
+function_def
+    : DEF NAME L_PAREN parameters R_PAREN COLON block { $$ = create_function_def($2, $4, $7); }
+    ;
+
+parameters
+    : parameters COMMA NAME { $$ = create_parameters(create_name($3), $1); }
+    | NAME { $$ = create_parameters(create_name($1), NULL); }
+    | /* empty */ { $$ = NULL; }
     ;
 
 block
-    : INDENT stmts DEDENT { $$ = $2; }
+    : INDENT statements DEDENT { $$ = $2; }
     ;
 
-test
-    : test OR and_test { $$ = create_test_node($1, $3, "or"); }
-    | and_test { $$ = $1; }
+expression
+    : disjunction { $$ = $1; }
     ;
 
-and_test
-    : and_test AND not_test { $$ = create_test_node($1, $3, "and"); }
-    | not_test { $$ = $1; }
+disjunction
+    : disjunction OR conjunction { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("||", $1, $3)); }
+    | conjunction { $$ = $1; }
     ;
 
-not_test
-    : NOT not_test { $$ = create_test_node(NULL, $2, "not"); }
-    | bexpr { $$ = $1; }
-    | expr { $$ = $1; }
+conjunction
+    : conjunction AND inversion { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("&&", $1, $3)); }
+    | inversion { $$ = $1; }
     ;
 
-bexpr
-    : expr EQ expr { $$ = create_bexpr_node($1, $3, "=="); }
-    | expr NE expr { $$ = create_bexpr_node($1, $3, "!="); }
-    | expr GT expr { $$ = create_bexpr_node($1, $3, ">"); }
-    | expr GE expr { $$ = create_bexpr_node($1, $3, ">="); }
-    | expr LT expr { $$ = create_bexpr_node($1, $3, "<"); }
-    | expr LE expr { $$ = create_bexpr_node($1, $3, "<="); }
+inversion
+    : NOT inversion { $$ = create_expression(EXPR_UNARY_OP, create_unary_op("!", $2)); }
+    | comparison { $$ = $1; }
     ;
 
-expr
-    : expr ADD mult_expr { $$ = create_expr_node(is_binary_expr, create_binary_expr_node($1, $3, "+")); }
-    | expr SUB mult_expr { $$ = create_expr_node(is_binary_expr, create_binary_expr_node($1, $3, "-")); }
-    | mult_expr { $$ = $1; }
+comparison
+    : bitwise_or EQ bitwise_or { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("==", $1, $3)); }
+    | bitwise_or NE bitwise_or { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("!=", $1, $3)); }
+    | bitwise_or GT bitwise_or { $$ = create_expression(EXPR_BINARY_OP, create_binary_op(">", $1, $3)); }
+    | bitwise_or GE bitwise_or { $$ = create_expression(EXPR_BINARY_OP, create_binary_op(">=", $1, $3)); }
+    | bitwise_or LT bitwise_or { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("<", $1, $3)); }
+    | bitwise_or LE bitwise_or { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("<=", $1, $3)); }
+    | bitwise_or { $$ = $1; }
     ;
 
-mult_expr
-    : mult_expr MUL bitwise_expr { $$ = create_expr_node(is_binary_expr, create_binary_expr_node($1, $3, "*")); }
-    | mult_expr DIV bitwise_expr { $$ = create_expr_node(is_binary_expr, create_binary_expr_node($1, $3, "/")); }
-    | mult_expr MOD bitwise_expr { $$ = create_expr_node(is_binary_expr, create_binary_expr_node($1, $3, "%")); }
-    | bitwise_expr { $$ = $1; }
+bitwise_or
+    : bitwise_or BITWISE_OR bitwise_xor { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("|", $1, $3)); }
+    | bitwise_xor { $$ = $1; }
     ;
 
-bitwise_expr
-    : bitwise_expr LEFT_SHIFT unary_expr { $$ = create_expr_node(is_binary_expr, create_binary_expr_node($1, $3, "<<")); }
-    | bitwise_expr RIGHT_SHIFT unary_expr { $$ = create_expr_node(is_binary_expr, create_binary_expr_node($1, $3, ">>")); }
-    | bitwise_expr BITWISE_AND unary_expr { $$ = create_expr_node(is_binary_expr, create_binary_expr_node($1, $3, "&")); }
-    | bitwise_expr BITWISE_XOR unary_expr { $$ = create_expr_node(is_binary_expr, create_binary_expr_node($1, $3, "^")); }
-    | bitwise_expr BITWISE_OR unary_expr { $$ = create_expr_node(is_binary_expr, create_binary_expr_node($1, $3, "|")); }
-    | unary_expr { $$ = $1; }
+bitwise_xor
+    : bitwise_xor BITWISE_XOR bitwise_and { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("^", $1, $3)); }
+    | bitwise_and { $$ = $1; }
     ;
 
-unary_expr
-    : NEG factor { $$ = create_expr_node(is_unary_expr, create_unary_expr_node($2, "-")); }
-    | SUB factor { $$ = create_expr_node(is_unary_expr, create_unary_expr_node($2, "-")); }
+bitwise_and
+    : bitwise_and BITWISE_AND shift_expr { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("&", $1, $3)); }
+    | shift_expr { $$ = $1; }
+    ;
+
+shift_expr
+    : shift_expr LEFT_SHIFT sum { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("<<", $1, $3)); }
+    | shift_expr RIGHT_SHIFT sum { $$ = create_expression(EXPR_BINARY_OP, create_binary_op(">>", $1, $3)); }
+    | sum { $$ = $1; }
+    ;
+
+sum
+    : sum ADD term { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("+", $1, $3)); }
+    | sum SUB term { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("-", $1, $3)); }
+    | term { $$ = $1; }
+    ;
+
+term
+    : term MUL factor { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("*", $1, $3)); }
+    | term DIV factor { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("/", $1, $3)); }
+    | term MOD factor { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("%", $1, $3)); }
     | factor { $$ = $1; }
     ;
 
 factor
-    : number { $$ = $1; }
-    | L_PAREN expr R_PAREN { $$ = $2; }
-    | NAME L_PAREN exprlist R_PAREN { $$ = create_expr_node(is_func_call, create_func_call_node($1, $3)); }
-    | NAME { $$ = create_expr_node(is_name, create_name_node($1)); }
+    : ADD factor { $$ = create_expression(EXPR_UNARY_OP, create_unary_op("+", $2)); }
+    | SUB factor { $$ = create_expression(EXPR_UNARY_OP, create_unary_op("-", $2)); }
+    | NEG factor { $$ = create_expression(EXPR_UNARY_OP, create_unary_op("~", $2)); }
+    | function_call { $$ = create_expression(EXPR_FUNCTION_CALL, $1); }
+    | atom { $$ = $1; }
     ;
 
-number
-    : DEC_INTEGER { $$ = create_expr_node(is_number, create_number_node($1)); }
-    | HEX_INTEGER { $$ = create_expr_node(is_number, create_number_node($1)); }
+function_call
+    : NAME L_PAREN arguments R_PAREN { $$ = create_function_call($1, $3); }
     ;
 
-exprlist
-    : expr { $$ = create_expr_list_node($1, NULL); }
-    | exprlist COMMA expr { $$ = create_expr_list_node($3, $1); }
+arguments
+    : arguments COMMA expression { $$ = create_arguments($3, $1); }
+    | expression { $$ = create_arguments($1, NULL); }
+    | /* empty */ { $$ = NULL; }
+    ;
+
+atom
+    : NAME { $$ = create_name(EXPR_NAME, create_name($1)); }
+    | DEC_INTEGER { $$ = create_expression(EXPR_INT, create_int($1)); }
+    | HEX_INTEGER { $$ = create_expression(EXPR_INT, create_int($1)); }
+    | L_PAREN expression R_PAREN { $$ = $2; }
     ;
 
 %%

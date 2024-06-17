@@ -2,194 +2,191 @@
 #define AST_H
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
-
-typedef enum {
-    is_program,
-    is_func_def,
-    is_func_call,
-    is_param_list,
-    is_stmts,
-    is_assignment_stmt,
-    is_flow_stmt,
-    is_if_stmt,
-    is_while_stmt,
-    is_for_stmt,
-    is_test,
-    is_bexpr,
-    is_expr,
-    is_binary_expr,
-    is_unary_expr,
-    is_factor,
-    is_name,
-    is_number,
-} NodeType;
+#include <string.h>
 
 typedef struct Program Program;
-typedef struct FuncDef FuncDef;
-typedef struct FuncCall FuncCall;
-typedef struct ParamList ParamList;
-typedef struct Stmts Stmts;
-typedef struct Stmt Stmt;
+typedef struct Statements Statements;
+typedef struct Statement Statement;
 typedef struct AssignmentStmt AssignmentStmt;
 typedef struct FlowStmt FlowStmt;
 typedef struct IfStmt IfStmt;
 typedef struct WhileStmt WhileStmt;
 typedef struct ForStmt ForStmt;
-typedef struct Test Test;
-typedef struct BExpr BExpr;
-typedef struct Expr Expr;
-typedef struct ExprList ExprList;
-typedef struct BinaryExpr BinaryExpr;
-typedef struct UnaryExpr UnaryExpr;
+typedef struct FunctionDef FunctionDef;
+typedef struct Parameters Parameters;
+typedef struct Arguments Arguments;
+typedef struct Expression Expression;
 typedef struct Name Name;
-typedef struct Number Number;
+typedef struct Int Int;
+typedef struct BinaryOp BinaryOp;
+typedef struct UnaryOp UnaryOp;
+typedef struct FunctionCall FunctionCall;
+
+typedef enum StatementTag StatementTag;
+typedef enum ExpressionTag ExpressionTag;
+
+enum StatementTag {
+    ASSIGNMENT_STMT,
+    FLOW_STMT,
+    IF_STMT,
+    WHILE_STMT,
+    FOR_STMT,
+    FUNCTION_DEF
+};
+
+enum ExpressionTag {
+    EXPR_NAME,
+    EXPR_INT,
+    EXPR_BINARY_OP,
+    EXPR_UNARY_OP,
+    EXPR_FUNCTION_CALL
+};
 
 struct Program {
-    FuncDef *func_defs;
-    Stmts *stmts;
+    Statements *statements;
 };
 
-struct FuncDef {
-    char *name;
-    ParamList *param_list;
-    Stmts *block;
+struct Statements {
+    Statement *statement;
+    Statements *next;
 };
 
-struct FuncCall {
-    char *name;
-    ExprList *expr_list;
-};
-
-struct ParamList {
-    ParamList *params;
-    char *name;
-};
-
-struct Stmts {
-    Stmts *stmts;
-    Stmt *stmt;
-};
-
-struct Stmt {
-    NodeType tag;
+struct Statement {
+    StatementTag tag;
     union {
-        AssignmentStmt *assign_stmt;
+        AssignmentStmt *assignment_stmt;
         FlowStmt *flow_stmt;
         IfStmt *if_stmt;
         WhileStmt *while_stmt;
         ForStmt *for_stmt;
+        FunctionDef *function_def;
     };
 };
 
 struct AssignmentStmt {
     char *name;
-    Expr *expr;
+    Expression *expression;
 };
 
 struct FlowStmt {
-    char *name;
+    char *name; // return, break, continue
+    Expression *expression;
 };
 
 struct IfStmt {
-    Test *test;
-    Stmts *then_block;
-    Stmts *else_block;
+    Expression *condition;
+    Statements *then_block;
+    Statements *else_block;
 };
 
 struct WhileStmt {
-    Test *test;
-    Stmts *block;
+    Expression *condition;
+    Statements *block;
 };
 
 struct ForStmt {
-    Expr *expr;
-    Test *test;
-    Stmts *block;
+    char *var;
+    Expression *range;
+    Statements *block;
 };
 
-struct Test {
-    Test *left;
-    Test *right;
-    char *op;
+struct FunctionDef {
+    char *name;
+    char **parameters;
+    int param_count;
+    Statements *body;
 };
 
-struct BExpr {
-    Expr *left;
-    Expr *right;
-    char *op;
+struct Parameters {
+    Name *parameter;
+    Parameters *next;
 };
 
-struct Expr {
-    NodeType tag;
+struct Arguments {
+    Expression *arg;
+    Arguments *next;
+};
+
+struct Expression {
+    ExpressionTag tag;
     union {
-        Number *num;
         Name *name;
-        FuncCall *func_call;
-        BinaryExpr *binary_expr;
-        UnaryExpr *unary_expr;
+        Int *int_value;
+        BinaryOp *binary_op;
+        UnaryOp *unary_op;
+        FunctionCall *function_call;
     };
-};
-
-struct ExprList {
-    Expr *expr;
-    ExprList *next;
-};
-
-struct BinaryExpr {
-    Expr *left;
-    Expr *right;
-    char *op;
-};
-
-struct UnaryExpr {
-    Expr *expr;
-    char *op;
 };
 
 struct Name {
     char *name;
 };
 
-struct Number {
-    int value;
+struct Int {
+    int64_t value;
 };
 
-// Function declarations
-Program *create_program_node(FuncDef *func_defs, Stmts *stmts);
-FuncDef *create_func_def_node(char *name, ParamList *param_list, Stmts *block);
-FuncCall *create_func_call_node(char *name, ExprList *expr_list);
-ParamList *create_param_list_node(ParamList *params, char *name);
-Stmts *create_stmts_node(Stmts *stmts, Stmt *stmt);
-Stmt *create_assignment_stmt_node(char *name, Expr *expr);
-Stmt *create_flow_stmt_node(char *name);
-Stmt *create_if_stmt_node(Test *test, Stmts *then_block, Stmts *else_block);
-Stmt *create_while_stmt_node(Test *test, Stmts *block);
-Stmt *create_for_stmt_node(Expr *expr, Test *test, Stmts *block);
-Test *create_test_node(Test *left, Test *right, char *op);
-BExpr *create_bexpr_node(Expr *left, Expr *right, char *op);
-Expr *create_expr_node(NodeType tag, void *data);
-ExprList *create_expr_list_node(Expr *expr, ExprList *next);
+struct BinaryOp {
+    char *op;
+    Expression *left;
+    Expression *right;
+};
 
-// Free functions
-void free_program_node(Program *node);
-void free_func_def_node(FuncDef *node);
-void free_func_call_node(FuncCall *node);
-void free_param_list_node(ParamList *node);
-void free_stmts_node(Stmts *node);
-void free_stmt_node(Stmt *node);
-void free_assignment_stmt_node(AssignmentStmt *node);
-void free_flow_stmt_node(FlowStmt *node);
-void free_if_stmt_node(IfStmt *node);
-void free_while_stmt_node(WhileStmt *node);
-void free_for_stmt_node(ForStmt *node);
-void free_test_node(Test *node);
-void free_bexpr_node(BExpr *node);
-void free_expr_node(Expr *node);
-void free_expr_list_node(ExprList *node);
-void free_binary_expr_node(BinaryExpr *node);
-void free_unary_expr_node(UnaryExpr *node);
-void free_name_node(Name *node);
-void free_number_node(Number *node);
+struct UnaryOp {
+    char *op;
+    Expression *expression;
+};
+
+struct FunctionCall {
+    char *name;
+    Expression **args;
+    int arg_count;
+};
+
+// Function prototypes
+Program *create_program(Statements *statements);
+Statements *create_statements(Statement *statement, Statements *next);
+
+Statement *create_assignment_stmt(char *name, Expression *expression);
+Statement *create_flow_stmt(char *name, Expression *expression);
+Statement *create_if_stmt(Expression *condition, Statements *then_block, Statements *else_block);
+Statement *create_while_stmt(Expression *condition, Statements *block);
+Statement *create_for_stmt(char *var, Expression *range, Statements *block);
+Statement *create_function_def(char *name, Parameters *parameters, Statements *body);
+Statement *create_statement(StatementTag tag, void *stmt);
+
+Parameters *create_parameters(Name *parameter, Parameters *next);
+Arguments *create_arguments(Expression *expression, Arguments *next);
+
+Name *create_name(char *name);
+Int *create_int(int64_t value);
+BinaryOp *create_binary_op(char *op, Expression *left, Expression *right);
+UnaryOp *create_unary_op(char *op, Expression *expression);
+FunctionCall *create_function_call(char *name, Arguments *args);
+Expression *create_expression(ExpressionTag tag, void *value);
+
+
+void free_program(Program *program);
+void free_statements(Statements *statements);
+
+void free_statement(Statement *statement);
+void free_assignment_stmt(AssignmentStmt *assignment_stmt);
+void free_flow_stmt(FlowStmt *flow_stmt);
+void free_if_stmt(IfStmt *if_stmt);
+void free_while_stmt(WhileStmt *while_stmt);
+void free_for_stmt(ForStmt *for_stmt);
+void free_function_def(FunctionDef *function_def);
+
+void free_parameters(Parameters *parameters);
+void free_arguments(Arguments *arguments);
+
+void free_name(Name *name);
+void free_int(Int *int_value);
+void free_binary_op(BinaryOp *binary_op);
+void free_unary_op(UnaryOp *unary_op);
+void free_function_call(FunctionCall *function_call);
+void free_expression(Expression *expression);
 
 #endif

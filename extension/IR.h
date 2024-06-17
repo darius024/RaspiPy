@@ -8,6 +8,7 @@
 #define MAX_NAME 16
 #define MAX_VAR 64
 #define MAX_FUNC 16
+#define MAX_INSTR 256
 
 typedef enum {
     IR_ADD,
@@ -40,9 +41,10 @@ typedef struct IRInstruction {
     IRType type;
     int dest;
     int src1;
-    int src2;
+    int src2;   
     int src3;
     int line;
+    int count;
     struct IRInstruction *next;
 } IRInstruction;
 
@@ -57,6 +59,7 @@ typedef struct IRProgram {
     Entry map[MAX_VAR];
     Entry funcs[MAX_FUNC];
     int64_t directives[MAX_DIR];
+    uint32_t instructions[MAX_INSTR];
 } IRProgram;
 
 #endif

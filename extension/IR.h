@@ -51,6 +51,7 @@ typedef struct IRInstruction {
 typedef struct {
     char name[MAX_NAME];
     int64_t value;
+    uint8_t reg;
 } Entry;
 
 typedef struct {
@@ -59,16 +60,18 @@ typedef struct {
 } HotMap;
 
 typedef struct {
+    int map_size;
     Entry map[MAX_VAR];
     Entry funcs[MAX_FUNC];
+    int64_t directives[MAX_DIR];
+    HotMap hotspots[MAX_HOTSPOTS];
 } state;
 
 typedef struct IRProgram {
     IRInstruction *head;
     IRInstruction *tail;
     state programState;
-    int64_t directives[MAX_DIR];
-    HotMap hotspots[MAX_HOTSPOTS]
 } IRProgram;
+
 
 #endif

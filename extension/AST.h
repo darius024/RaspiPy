@@ -94,7 +94,7 @@ struct ForStmt {
 
 struct FunctionDef {
     char *name;
-    char **parameters;
+    Parameters *parameters;
     int param_count;
     Statements *body;
 };
@@ -141,7 +141,7 @@ struct UnaryOp {
 
 struct FunctionCall {
     char *name;
-    Expression **args;
+    Arguments *args;
     int arg_count;
 };
 
@@ -149,12 +149,12 @@ struct FunctionCall {
 Program *create_program(Statements *statements);
 Statements *create_statements(Statement *statement, Statements *next);
 
-Statement *create_assignment_stmt(char *name, Expression *expression);
-Statement *create_flow_stmt(char *name, Expression *expression);
-Statement *create_if_stmt(Expression *condition, Statements *then_block, Statements *else_block);
-Statement *create_while_stmt(Expression *condition, Statements *block);
-Statement *create_for_stmt(char *var, Expression *range, Statements *block);
-Statement *create_function_def(char *name, Parameters *parameters, Statements *body);
+AssignmentStmt *create_assignment_stmt(char *name, Expression *expression);
+FlowStmt *create_flow_stmt(char *name, Expression *expression);
+IfStmt *create_if_stmt(Expression *condition, Statements *then_block, Statements *else_block);
+WhileStmt *create_while_stmt(Expression *condition, Statements *block);
+ForStmt *create_for_stmt(char *var, Expression *range, Statements *block);
+FunctionDef *create_function_def(char *name, Parameters *parameters, Statements *body);
 Statement *create_statement(StatementTag tag, void *stmt);
 
 Parameters *create_parameters(Name *parameter, Parameters *next);

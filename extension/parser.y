@@ -154,17 +154,17 @@ expression
     ;
 
 disjunction
-    : disjunction OR conjunction { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("||", $1, $3)); }
+    : disjunction OR conjunction { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("or", $1, $3)); }
     | conjunction { $$ = $1; }
     ;
 
 conjunction
-    : conjunction AND inversion { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("&&", $1, $3)); }
+    : conjunction AND inversion { $$ = create_expression(EXPR_BINARY_OP, create_binary_op("and", $1, $3)); }
     | inversion { $$ = $1; }
     ;
 
 inversion
-    : NOT inversion { $$ = create_expression(EXPR_UNARY_OP, create_unary_op("!", $2)); }
+    : NOT inversion { $$ = create_expression(EXPR_UNARY_OP, create_unary_op("not", $2)); }
     | comparison { $$ = $1; }
     ;
 

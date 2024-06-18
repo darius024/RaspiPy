@@ -14,11 +14,12 @@
 
 extern int registers[31];
 
-typedef struct {
-    Entry *map[MAX_VAR];
-    int map_size;
-} State;
 
+State *create_Map(int size);
+
+State *create_HotMap();
+
+State *create_state();
 
 BranchConditional getComparison(BinaryOp *binary_op);
 
@@ -39,7 +40,7 @@ void free_ir_instruction(IRInstruction *instruction);
 
 int getNextFreeRegister();
 
-int freeRegister(int i);
+void freeRegister(int i);
 
 Expression *getArguments(FunctionCall *function_call); 
 
@@ -47,7 +48,7 @@ void insertInstruction(IRProgram *program, IRInstruction *instruction);
 
 void insertProgram(IRProgram *program, IRProgram *block);
 
-int64_t *search_vars(char *name, state *State);
+int64_t *search_vars(char *name, State *state);
 
 
 #endif 

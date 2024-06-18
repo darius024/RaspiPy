@@ -9,7 +9,7 @@
 #include "eval.c"
 
 //returns pointer to the expression
-static Expression *const_prop(Expression *expr, state *State) {
+Expression *const_prop(Expression *expr, state *State) {
     switch (expr->tag)
     {
     case (EXPR_NAME):
@@ -53,8 +53,7 @@ static Expression *const_prop(Expression *expr, state *State) {
     
 }
 
-
-static Expression *const_fold(Expression *expr, state *State) {
+Expression *const_fold(Expression *expr, state *State) {
     switch (expr->tag)
     {
     case (EXPR_NAME):
@@ -109,7 +108,9 @@ static Expression *const_fold(Expression *expr, state *State) {
             start = start->next;
         }
         return expr;            
-    default: // Function call 
+    default: // Function call
+        perror("invalid tag"); 
+        exit(EXIT_FAILURE);
         break;
     }
     

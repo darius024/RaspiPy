@@ -60,6 +60,7 @@ IRProgram *Statements_to_IR(Statements *statements, State *state, int *line)
         }
         statements = statements->next;
     }
+    return program;
 }
 
 int main(int argc, char const *argv[])

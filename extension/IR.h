@@ -75,12 +75,12 @@ typedef struct {
     Entry funcs[MAX_FUNC];
     int64_t directives[MAX_DIR];
     HotMap hotspots[MAX_HOTSPOTS];
-} state;
+} State;
 
 typedef struct IRProgram {
     IRInstruction *head;
     IRInstruction *tail;
-    state programState;
+    State programState;
 } IRProgram;
 
 

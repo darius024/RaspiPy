@@ -10,6 +10,56 @@
 int registers[31] = {0};
 
 
+Entry **create_Map(int size){
+    Entry *map = calloc(size, sizeof(Entry));
+    return map;
+}
+
+HotMap *create_HotMap(){
+    Entry *hot_map = calloc(MAX_HOTSPOTS,sizeof(HotMap));
+    return hot_map;
+}
+
+
+State *create_state(){
+    State* state = malloc(sizeof(State));
+    if (state == NULL) {
+        perror("couldnt malloc");
+        exit(EXIT_FAILURE);
+    }
+    Entry *map = create_Map(MAX_VAR);
+    if(map == NULL) {
+        free(state);
+        perror("couldnt malloc Entry");
+        exit(EXIT_FAILURE);
+    }
+    Entry *funcs = create_Map(MAX_FUNC);
+    if(funcs == NULL) {
+        free(state);
+        free(map);
+        perror("couldnt malloc Entry");
+        exit(EXIT_FAILURE);
+    }
+
+    HotMap *hotspots = create_HotMap();
+    if(hotspots == NULL) {
+        free(state);
+        free(map);
+        free(funcs);
+        perror("couldnt malloc hotmap");
+        exit(EXIT_FAILURE);
+    }
+
+    return state;
+}
+
+
+void free_State(State *state) {
+    free(state);
+} 
+
+
+
 BranchConditional getComparison(BinaryOp *binary_op)
 {
     if (strcmp(binary_op->op, "==")) {
@@ -59,16 +109,16 @@ BranchConditional getNegatedComparison(BinaryOp *binary_op)
 int getRegister(Name *name, State *state)
 {
     for (int i = 0; i < state->map_size; i++) {
-        if (strcmp(name->name, state->map[i]->name) == 0) {
-            return state->map[i]->reg;
+        if (strcmp(name->name, state->map[i].name) == 0) {
+            return state->map[i].reg;
         }
     }
     // Not found
     // Create new register for that variable
-    strcpy(state->map[state->map_size]->name, name);
-    state->map[state->map_size]->value = 0;
-    state->map[state->map_size]->reg = getNextFreeRegister();
-    return state->map[state->map_size++]->reg;
+    strcpy(state->map[state->map_size].name, name);
+    state->map[state->map_size].value = 0;
+    state->map[state->map_size].reg = getNextFreeRegister();
+    return state->map[state->map_size++].reg;
 }
 
 IRProgram* create_ir_program()
@@ -123,7 +173,7 @@ int getNextFreeRegister() {
     exit(EXIT_FAILURE);
 }
 
-int freeRegister(int i) {
+void freeRegister(int i) {
     registers[i] = 0;
 }
 
@@ -165,7 +215,7 @@ void insertProgram(IRProgram *program, IRProgram *block)
 }
 
 
-int64_t *search_vars(char *name, state *State) {
+int64_t *search_vars(char *name, State *State) {
     if (State->map_size > 0) {
         for(int i = 0; i < State->map_size; i++) {
             if (State->map[i].name == name) {

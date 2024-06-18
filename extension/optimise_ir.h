@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 #include "ast.h"
-#include "ir.h"
+#include "state.h"
 
 Expression *const_prop(Expression *expr, State *state); 
 Expression *const_fold(Expression *expr, State *state);

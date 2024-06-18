@@ -5,7 +5,7 @@
 
 #include "ir.h"
 
-IRProgram* create_ir_program()
+IRProgram* create_ir_program(void)
 {
     IRProgram *program = malloc(sizeof(IRProgram));
     assert(program != NULL);
@@ -55,12 +55,6 @@ void free_ir_instruction(IRInstruction *instruction)
 
 
 // TODO: Flow return_address figuring out
-// TODO: Handle function calls in evalExpr
 // TODO: Augmented Assign
-// Load and Store instrctions
-// Directives Handling
-// TODO: fix header file errors
-// TODO: figure out how to handle function call evaluation
-// TODO: decided int64_t* or int64_t output for eval expression given it might not work 
-// TODO: implement registers intead of immediate value for statements in a Function def IR
 // TODO: more putBits
+// TODO: jit.c

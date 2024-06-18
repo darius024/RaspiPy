@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "ast.h"
 #include "ir.h"
+#include "state.h"
 
 #define MAX_ARGS 8
 
@@ -14,9 +15,9 @@ BranchConditional getNegatedComparison(BinaryOp *binary_op);
 uint8_t getRegister(Name *name, State *state);
 uint8_t getNextFreeRegister();
 void freeRegister(State *state, uint8_t i);
-void insertInstruction(IRProgram *program, IRInstruction *instruction);
+void insertInstruction(IRProgram *program, IRInstruction *instruction, int count_update);
 void insertProgram(IRProgram *program, IRProgram *block);
-int64_t *search_vars(char *name, State *state);
+int64_t searchName(char *name, State *state);
 void updateState(State *state, uint8_t reg, int64_t value);
 IRProgram *push_to_stack(IRProgram *program, State *state, uint8_t reg, int *line);
 IRProgram *pop_from_stack(IRProgram *program, State *state, uint8_t reg, int *line);

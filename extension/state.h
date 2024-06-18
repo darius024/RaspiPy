@@ -1,6 +1,6 @@
-
 #include "hotspot.h"
 #include <stdint.h>
+#include <stdlib.h>
 
 #define MAX_NAMES 16
 #define MAX_VARS 64

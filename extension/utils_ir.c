@@ -114,14 +114,14 @@ void push_to_stack(Program *program, State *state, uint8_t reg, int *line)
     IRInstruction *push = create_ir_instruction(IR_STR, reg, state->stack_size, NOT_USED, NOT_USED, line);
     push->dest->type = REG;
     push->src1->type = LABEL;
-    insertInstruction(program, push);
+    insertInstruction(program, push, 0);
     state->stack[state->stack_size] = registers[reg];
     state->stack_size++;
     IRInstruction *stack = create_ir_instruction(IR_ADD, SP, SP, 32, NOT_USED, line);
     stack->dest->type = REG;
     stack->src1->type = REG;
     stack->src2->type = IMM;
-    insertInstruction(program, stack);
+    insertInstruction(program, stack, 0);
     return program;
 }
 
@@ -136,7 +136,7 @@ void pop_from_stack(Program *program, State *state, uint8_t reg, int *line)
     stack->dest->type = REG;
     stack->src1->type = REG;
     stack->src2->type = IMM;
-    insertInstruction(program, stack);
+    insertInstruction(program, stack, 0);
     return pop;
 }
 
@@ -146,7 +146,7 @@ void saveRegister(Program *program, State *state, uint8_t reg, int *line)
     // Save in caller/calle saved
     push_to_stack(program, state, reg + 8, line);
     IRInstruction *call_saved = create_ir_instruction(IR_MOV, reg + 8, reg, NOT_USED, NOT_USED, line);
-    insertInstruction(program, call_saved);
+    insertInstruction(program, call_saved, 0);
     return program;
 }
 
@@ -154,12 +154,12 @@ void restoreRegister(Program *program, State *state, uint8_t reg, int *line)
 {
     // Restore from caller/calle saved
     IRInstruction *call_saved = create_ir_instruction(IR_MOV, reg, reg + 8, NOT_USED, NOT_USED, line);
-    insertInstruction(program, call_saved);
+    insertInstruction(program, call_saved, 0);
     pop_from_stack(program, state, reg + 8, line);
     return program;
 }
 
-void insertInstruction(IRProgram *program, IRInstruction *instruction)
+void insertInstruction(IRProgram *program, IRInstruction *instruction, int count_update)
 {
     if (program->head == NULL) {
         program->head = instruction;
@@ -168,6 +168,7 @@ void insertInstruction(IRProgram *program, IRInstruction *instruction)
         program->tail->next = instruction;
         program->tail = instruction;
     }
+    instruction->count += count_update;
 }
 
 void insertProgram(IRProgram *program, IRProgram *block)
@@ -184,15 +185,14 @@ void insertProgram(IRProgram *program, IRProgram *block)
     }
 }
 
-int64_t *search_vars(char *name, State *State) {
-    if (State->map_size > 0) {
-        for(int i = 0; i < State->map_size; i++) {
-            if (State->map[i].name == name) {
-                return &(State->map[i].value);
-            }    
-        }
+int64_t searchName(char *name, State *state)
+{
+    for (int i = 0; i < state->map_size; i++) {
+        if (strcmp(state->map[i].name, name) == 0) {
+            return state->map[i].value;
+        }    
     }
-    return NULL;
+    exit(EXIT_FAILURE);
 }
 
 void updateState(State *state, uint8_t reg, int64_t value)

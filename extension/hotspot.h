@@ -15,7 +15,6 @@ typedef struct {
 
 
 // Prototypes
-uint32_t getHotSpot(IRInstruction *ir_instr);
-void addHotSpot(uint32_t instrBin, int line);
+uint32_t returnHotSpot(int line);
 
 #endif

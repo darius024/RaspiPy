@@ -61,7 +61,7 @@ typedef struct {
     TokenType type;
 } Token;
 
-typedef struct IRInstruction {
+typedef struct {
     IRType type; // mnemonic
     Token *dest; // 1st token
     Token *src1; // 2nd token
@@ -72,7 +72,7 @@ typedef struct IRInstruction {
     struct IRInstruction *next;
 } IRInstruction;
 
-typedef struct IRProgram {
+typedef struct {
     IRInstruction *head;
     IRInstruction *tail;
 } IRProgram;
@@ -87,8 +87,6 @@ typedef struct IRProgram {
  * - each instruction has a type and fields
 */
 
-
-// Prototypes
 IRProgram* create_ir_program(void);
 void free_ir_program(IRProgram *program);
 

@@ -1,6 +1,8 @@
+#include <ctype.h>
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "ast.h"
 #include "hotspot.h"
 #include "ir.h"
 #include "src/datatypes_as.h"
@@ -13,51 +15,63 @@
 extern HotMap hotspots[MAX_HOTSPOTS];
 extern int hotspots_count;
 
-// Functions to wokr with hotspots
+// Functions to work with hotspots
 
-char *getReg(int src) {
-    char *reg = malloc(4 * sizeof(char));
-    sprintf(reg, "w%d", src);
-    return reg;
-}
-
-char *getImm(int src) {
-    char *imm = malloc(10 * sizeof(char));
-    sprintf(imm, "#%d", src);
-    return imm;
-}
-
-uint32_t getHotSpot(IRInstruction *ir_instr)
+static void putMnemonic(char *assembly_line, IRType type)
 {
-    char assembly_line[MAX_ASSEMBLY_LINE] = getMnemonic(ir_instr->type);
+    char mnemonic[MAX_TOKEN_LENGTH];
+    strcpy(mnemonic, GENERATE_STRING(type) + 3);
+    for (int i = 0; i < strlen(mnemonic); i++) {
+        mnemonic[i] = tolower(mnemonic[i]);
+    }
+    strcat(assembly_line, mnemonic);
+}
 
-    if (ir_instr->dest != NOT_USED) {
+static void putReg(char *assembly_line, int src) {
+    char reg[MAX_TOKEN_LENGTH];
+    sprintf(reg, "w%d", src);
+    strcat(assembly_line, " ");
+    strcat(assembly_line, reg);
+}
+
+static void putImm(char *assembly_line, int src) {
+    char imm[MAX_TOKEN_LENGTH];
+    sprintf(imm, "#%d", src);
+    strcat(assembly_line, " ");
+    strcat(assembly_line, imm);
+}
+
+static void putRegOrImm(char *assembly_line, Token *token)
+{
+     if (token->reg != NOT_USED) {
         strcat(assembly_line, " ");
-        strcat(assembly_line, getReg(ir_instr->dest));
+        if (token->type == REG) {
+            putReg(assembly_line, token->reg);
+        } else if (token->type == IMM) {
+            putImm(assembly_line, token->reg);
+        } else {
+            // I have no idea. We shouldn't assemble lines with labels
+        }
     }
-    if (ir_instr->src1 != NOT_USED) {
-        strcat(assembly_line, " ");
-        strcat(assembly_line, getReg(ir_instr->src1));
-    }
-    if (ir_instr->src2 != NOT_USED) { // register or immediate value, depends on type
-        strcat(assembly_line, " ");
-        strcat(assembly_line, getReg(ir_instr->src2));
-    }
-    if (ir_instr->src3 != NOT_USED) { // register or immediate value, depends on type
-        strcat(assembly_line, " ");
-        strcat(assembly_line, getReg(ir_instr->src3));
-    }
+}
+
+static uint32_t getHotSpot(IRInstruction *ir_instr)
+{
+    char assembly_line[MAX_ASSEMBLY_LINE] = "";
+    putMnemonic(assembly_line, ir_instr->type);
+    putRegOrImm(assembly_line, ir_instr->dest);
+    putRegOrImm(assembly_line, ir_instr->src1);
+    putRegOrImm(assembly_line, ir_instr->src2);
+    putRegOrImm(assembly_line, ir_instr->src3);
 
     InstructionParse *instr = initializeInstructionParse();
     Instruction *instruction = initializeInstruction();
 
+    // Decompose
     char *instrSavePntr = NULL;
-    // Set the mnemonic and type of the instruction
     char *token = strtok_r(instr->buff, SPACE, &instrSavePntr);
     strcpy(instr->instrname, token);
     instr->type = identifyType(instr->instrname);
-
-    // Take the tokens one by one
     instr->numTokens = 0;
     token = strtok_r(NULL, SPACECOMMA, &instrSavePntr);
     while (token != NULL) {
@@ -65,28 +79,43 @@ uint32_t getHotSpot(IRInstruction *ir_instr)
         token = strtok_r(NULL, SPACECOMMA, &instrSavePntr);
     }
 
+    // Disassemble
     int disassembleError = disassemble(instr, instruction);
     checkError(disassembleError);
     
-    if (instr->type == lb || instr->type == dir) return; // no decode
+    // Decode
     uint32_t instrBin = 0;
     int decodeError = decode(&instrBin, instruction, putBits);
     checkError(decodeError);
 
+    // Return
     return instrBin;
 }
 
-void addHotSpot(uint32_t instrBin, int line)
+static void addHotSpot(uint32_t instrBin, int line)
 {
     hotspots[hotspots_count].instruction = instrBin;
     hotspots[hotspots_count++].line = line;
 }
 
-
+uint32_t returnHotSpot(int line)
+{
+    for (int i = 0; i < hotspots_count; i++) {
+        if (hotspots[i].line == line) {
+            return hotspots[i].instruction;
+        }
+    }
+    exit(EXIT_FAILURE);
+}
 
 
 // Executes the program and counts the number of times each line is executed
-void executeProgram(IRProgram program)
+void executeProgram(IRProgram *program)
 {
-
+    IRInstruction *instr = program->head;
+    while (instr != NULL) {
+        // Need to support IR_BR as well, not easy to do
+        instr->count++;
+        instr = instr->next;
+    }
 }

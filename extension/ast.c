@@ -1,4 +1,4 @@
-#include "AST.h"
+#include "ast.h"
 
 // Create functions
 Program *create_program(Statements *statements) {

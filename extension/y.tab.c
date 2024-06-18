@@ -73,7 +73,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "AST.h"
+#include "ast.h"
 #include "lex.yy.h"
 
 extern int yylex(void);

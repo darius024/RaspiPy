@@ -24,9 +24,6 @@ typedef struct BinaryOp BinaryOp;
 typedef struct UnaryOp UnaryOp;
 typedef struct FunctionCall FunctionCall;
 
-typedef enum StatementTag StatementTag;
-typedef enum ExpressionTag ExpressionTag;
-
 enum StatementTag {
     ASSIGNMENT_STMT,
     FLOW_STMT,
@@ -43,6 +40,10 @@ enum ExpressionTag {
     EXPR_UNARY_OP,
     EXPR_FUNCTION_CALL
 };
+
+typedef enum StatementTag StatementTag;
+typedef enum ExpressionTag ExpressionTag;
+
 
 struct Program {
     Statements *statements;

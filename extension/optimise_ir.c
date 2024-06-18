@@ -2,19 +2,18 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "IR.h"
-#include "AST.h"
+#include "ir.h"
+#include "ast.h"
 #include "optimise_ir.h"
-#include "utlis_ir.c"
-#include "eval.c"
+#include "utils_ir.h"
 
 //returns pointer to the expression
-Expression *const_prop(Expression *expr, state *State) {
+Expression *const_prop(Expression *expr, State *state) {
     switch (expr->tag)
     {
     case (EXPR_NAME):
         Int *val = malloc(sizeof(Int));
-        int64_t *var = search_vars(expr->name->name, State);
+        int64_t *var = search_vars(expr->name->name, state);
         if (var == NULL){
             free_int(val);
             perror("couldnt evaluate the binary op");
@@ -28,22 +27,22 @@ Expression *const_prop(Expression *expr, state *State) {
     case (EXPR_INT):
         return expr;
     case (EXPR_BINARY_OP):
-        Expression l = *const_prop(expr->binary_op->left, State);
-        Expression r = *const_prop(expr->binary_op->right, State);
+        Expression l = *const_prop(expr->binary_op->left, state);
+        Expression r = *const_prop(expr->binary_op->right, state);
 
         *expr->binary_op->left = l;
         *expr->binary_op->right = r;
 
         return expr;
     case (EXPR_UNARY_OP):
-        Expression *e = const_prop(expr->unary_op->expression, State);
+        Expression *e = const_prop(expr->unary_op->expression, state);
 
         expr->unary_op->expression = e;
         return expr; 
     case (EXPR_FUNCTION_CALL):
         Arguments* start = expr->function_call->args;
         while (start != NULL) {
-            const_prop(start->arg,State);
+            const_prop(start->arg, state);
             start = start->next;
         }
         return expr;
@@ -53,16 +52,16 @@ Expression *const_prop(Expression *expr, state *State) {
     
 }
 
-Expression *const_fold(Expression *expr, state *State) {
+Expression *const_fold(Expression *expr, State *state) {
     switch (expr->tag)
     {
     case (EXPR_NAME):
-        return const_prop(expr, State);
+        return const_prop(expr, state);
     case (EXPR_INT):
         return expr;
     case (EXPR_BINARY_OP):
-        Expression l = *const_fold(expr->binary_op->left, State);
-        Expression r = *const_fold(expr->binary_op->right, State);
+        Expression l = *const_fold(expr->binary_op->left, state);
+        Expression r = *const_fold(expr->binary_op->right, state);
         
         if (l.tag == EXPR_INT && r.tag == EXPR_INT) {
             Int *val = malloc(sizeof(Int));
@@ -82,7 +81,7 @@ Expression *const_fold(Expression *expr, state *State) {
         *expr->binary_op->right = r;
         return expr;
     case (EXPR_UNARY_OP):
-        Expression u = *const_fold(expr->unary_op->expression, State);
+        Expression u = *const_fold(expr->unary_op->expression, state);
 
         if (expr->tag == EXPR_INT) {
             Int *val = malloc(sizeof(Int));
@@ -104,7 +103,7 @@ Expression *const_fold(Expression *expr, state *State) {
     case (EXPR_FUNCTION_CALL):
         Arguments* start = expr->function_call->args;
         while (start != NULL) {
-            const_fold(start->arg,State);
+            const_fold(start->arg, state);
             start = start->next;
         }
         return expr;            

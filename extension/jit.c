@@ -2,10 +2,12 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "IR.h"
+#include "ir.h"
 #include "../src/constants.h"
 #include "../src/instructions.h"
 #include "../src/utils_as.h"
+
+int registers[NUM_REGISTERS] = {NOT_USED};
 
 uint32_t generateInstruction(IRInstruction *instruction) 
 {
@@ -55,12 +57,6 @@ uint32_t generateInstruction(IRInstruction *instruction)
             putBits(&out, instruction->src1, DPR_RN_OFFSET, DPR_RN_LEN);
             putBits(&out, instruction->dest, DPI_RD_OFFSET, DPR_RD_LEN);
             break;
-        case IR_DIV:
-            // TODO
-            break;
-        case IR_MOD:
-            // TODO
-            break;
         case IR_AND:
             putBits(&out, OP0_DPR, OP0_OFFSET, OP0_LEN);
             putBits(&out, 1, DPR_SF_OFFSET, DPR_SF_LEN);
@@ -70,17 +66,17 @@ uint32_t generateInstruction(IRInstruction *instruction)
             putBits(&out, instruction->src1, DPR_RN_OFFSET, DPR_RN_LEN);
             putBits(&out, instruction->dest, DPR_RD_OFFSET, DPR_RD_LEN);
             break;
-        case IR_BIC:
-            putBits(&out, OP0_DPR, OP0_OFFSET, OP0_LEN);
-            putBits(&out, 1, DPR_SF_OFFSET, DPR_SF_LEN);
-            putBits(&out, BITWISE_AND, DPR_OPC_OFFSET, DPR_OPC_LEN);
-            putBits(&out, 0, DPR_ARMORLOG_OFFSET, DPR_ARMORLOG_LEN);
-            putBits(&out, 1, DPR_N_OFFSET, DPR_N_LEN);
-            putBits(&out, instruction->src2, DPR_RM_OFFSET, DPR_RM_LEN);
-            putBits(&out, instruction->src1, DPR_RN_OFFSET, DPR_RN_LEN);
-            putBits(&out, instruction->dest, DPR_RD_OFFSET, DPR_RD_LEN);
-            break;
-        case IR_OR:
+        // case IR_BIC:
+        //     putBits(&out, OP0_DPR, OP0_OFFSET, OP0_LEN);
+        //     putBits(&out, 1, DPR_SF_OFFSET, DPR_SF_LEN);
+        //     putBits(&out, BITWISE_AND, DPR_OPC_OFFSET, DPR_OPC_LEN);
+        //     putBits(&out, 0, DPR_ARMORLOG_OFFSET, DPR_ARMORLOG_LEN);
+        //     putBits(&out, 1, DPR_N_OFFSET, DPR_N_LEN);
+        //     putBits(&out, instruction->src2, DPR_RM_OFFSET, DPR_RM_LEN);
+        //     putBits(&out, instruction->src1, DPR_RN_OFFSET, DPR_RN_LEN);
+        //     putBits(&out, instruction->dest, DPR_RD_OFFSET, DPR_RD_LEN);
+        //     break;
+        case IR_ORR:
             putBits(&out, OP0_DPR, OP0_OFFSET, OP0_LEN);
             putBits(&out, 1, DPR_SF_OFFSET, DPR_SF_LEN);
             putBits(&out, BITWISE_OR, DPR_OPC_OFFSET, DPR_OPC_LEN);
@@ -107,14 +103,14 @@ uint32_t generateInstruction(IRInstruction *instruction)
             putBits(&out, instruction->src1, DPR_RN_OFFSET, DPR_RN_LEN);
             putBits(&out, instruction->dest, DPR_RD_OFFSET, DPR_RD_LEN);
             break;
-        case IR_WIDEMOVE:
-            putBits(&out, OP0_DPI, OP0_OFFSET, OP0_LEN);
-            putBits(&out, 1, DPI_SF_OFFSET, DPI_SF_LEN);
-            putBits(&out, MOVE_WITH_ZERO, DPI_OPC_OFFSET, DPI_OPC_LEN);
-            putBits(&out, WIDEMOVE, DPI_OPI_OFFSET, DPI_OPI_LEN);
-            putBits(&out, instruction->src1, DPI_IMM16_OFFSET, DPI_IMM16_LEN);
-            putBits(&out, instruction->dest, DPI_RD_OFFSET, DPI_RD_LEN);
-            break;
+        // case IR_WIDEMOVE:
+        //     putBits(&out, OP0_DPI, OP0_OFFSET, OP0_LEN);
+        //     putBits(&out, 1, DPI_SF_OFFSET, DPI_SF_LEN);
+        //     putBits(&out, MOVE_WITH_ZERO, DPI_OPC_OFFSET, DPI_OPC_LEN);
+        //     putBits(&out, WIDEMOVE, DPI_OPI_OFFSET, DPI_OPI_LEN);
+        //     putBits(&out, instruction->src1, DPI_IMM16_OFFSET, DPI_IMM16_LEN);
+        //     putBits(&out, instruction->dest, DPI_RD_OFFSET, DPI_RD_LEN);
+        //     break;
         case IR_MOV: // same as IR_OR
             putBits(&out, OP0_DPR, OP0_OFFSET, OP0_LEN);
             putBits(&out, 1, DPR_SF_OFFSET, DPR_SF_LEN);
@@ -128,12 +124,12 @@ uint32_t generateInstruction(IRInstruction *instruction)
             putBits(&out, BRANCH_UNCONDITIONAL, B_TYPE_OFFSET, B_TYPE_LEN);
             putBits(&out, instruction->dest, B_SIMM26_OFFSET, B_SIMM26_LEN);
             break;
-        case IR_BC:
-            putBits(&out, OP0_B, OP0_OFFSET, OP0_LEN);
-            putBits(&out, BRANCH_CONDITIONAL, B_TYPE_OFFSET, B_TYPE_LEN);
-            putBits(&out, instruction->dest, B_SIMM19_OFFSET, B_SIMM19_LEN);
-            putBits(&out, instruction->src1, B_TAG_OFFSET, B_TAG_LEN);
-            break;
+        // case IR_BCOND:
+        //     putBits(&out, OP0_B, OP0_OFFSET, OP0_LEN);
+        //     putBits(&out, BRANCH_CONDITIONAL, B_TYPE_OFFSET, B_TYPE_LEN);
+        //     putBits(&out, instruction->dest, B_SIMM19_OFFSET, B_SIMM19_LEN);
+        //     putBits(&out, instruction->src1, B_TAG_OFFSET, B_TAG_LEN);
+        //     break;
         case IR_BR:
             putBits(&out, OP0_B, OP0_OFFSET, OP0_LEN);
             putBits(&out, BRANCH_REGISTER, B_TYPE_OFFSET, B_TYPE_LEN);
@@ -157,9 +153,6 @@ uint32_t generateInstruction(IRInstruction *instruction)
             putBits(&out, instruction->src1, SDT_XN_OFFSET, SDT_XN_OFFSET);
             putBits(&out, instruction->dest, SDT_RT_OFFSET, SDT_RT_LEN);
             break;
-        case IR_LABEL:
-            // TODO
-            break;
         case IR_DIR:
             // TODO
             break;
@@ -167,4 +160,10 @@ uint32_t generateInstruction(IRInstruction *instruction)
             break;
     }
     return out;
+}
+
+
+int main()
+{
+    return EXIT_SUCCESS;
 }

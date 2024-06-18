@@ -1,182 +1,65 @@
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
 
 #include "IR.h"
 #include "AST.h"
+#include "utlis_ir.c"
+#include "optimise_ir.c"
+#include "AST_to_IR.h"
 
-state State;
-
-IRProgram ast_to_ir(Program program)
+IRProgram *AST_to_IR(Program *prog, State *state)
 {
-    // TODO
-    // We do here the (pre, mid, post) instruction handling
-    // by executing the fields in each node of the AST successively
-    abort();
+    // Create an IR program
+    IRProgram *program = create_ir_program();
+    State *state = create_state();
+
+    int line = 0;
+
+    insertProgram(program, Statements_to_IR(prog->statements, state, &line));
+
+    return program;
 }
 
-IRProgram stmts_to_ir(Statements stmts)
+
+IRProgram *Statements_to_IR(Statements *statements, State *state, int *line)
 {
-    // TODO
-    // Execute a block... construct a list which we insert in the main program
-    abort();
-}
+    // Create an IR program
+    IRProgram *program = create_ir_program();
 
-
-
-static int64_t *search_vars(char *name, state *State) {
-    if (State->map_size > 0) {
-        for(int i = 0; i < State->map_size; i++) {
-            if (State->map[i].name == name) {
-                return &(State->map[i].value);
-            }    
+    // Always append the state
+    while(statements->next != NULL) {
+        switch(statements->statement->tag) {
+            case ASSIGNMENT_STMT:
+                AssignmentStmt *stmt = statements->statement->assignment_stmt;
+                insertInstruction(program, stmt);
+                break;
+            case FLOW_STMT:
+                FlowStmt *stmt = statements->statement->flow_stmt;
+                insertInstruction(program, FlowStmt_to_IR(stmt, 0, state, line));
+                // Change return address
+                break;
+            case FOR_STMT:
+                ForStmt *stmt = statements->statement->for_stmt;
+                insertProgram(program, ForStmt_to_IR(stmt, state, line));
+                break;
+            case WHILE_STMT:
+                WhileStmt *stmt = statements->statement->while_stmt;
+                insertProgram(program, WhileStmt_to_IR(stmt, state, line));
+                break;
+            case IF_STMT:
+                IfStmt *stmt = statements->statement->if_stmt;
+                insertProgram(program, IfStmt_to_IR(stmt, state, line));
+                break;
+            case FUNCTION_DEF:
+                FunctionDef *stmt = statements->statement->function_def;
+                State *callee_state = create_state();
+                insertProgram(program, FunctionDef_to_IR(stmt, state, callee_state, line));
+                break;
         }
+        statements = statements->next;
     }
-    return NULL;
-}
-
-static int64_t *evaluate_int_binary_op(const char *op, int64_t left, int64_t right) {
-    int64_t *v = malloc(sizeof(int64_t));
- 
-    if (strcmp(op, "+") == 0) {*v = left + right;}
-    else if (strcmp(op, "-") == 0) {*v = left - right;}
-    else if (strcmp(op, "*") == 0) {*v = left * right;}
-    else if(strcmp(op,"|") == 0)   {*v = left | right;}
-    else if(strcmp(op,"^") == 0)   {*v = left ^ right;} 
-    else if(strcmp(op,"&") == 0)   {*v = left & right;} 
-    else if(strcmp(op,"<<") == 0)  {*v = left << right;} 
-    else if(strcmp(op,">>") == 0)  {*v = left >> right;}
-    else if (strcmp(op, "/") == 0 && right != 0) {*v = left / right;} // Avoid division by zero
-    else if ('%' == *op && right != 0) {*v =  left % right;} // Avoid modulo by zero
-    else if(strcmp(op,"<") == 0)  { *v =  (left < right)? 1 : 0;} 
-    else if(strcmp(op,">") == 0)  { *v =  (left > right)? 1 : 0;}
-    else if(strcmp(op,"==") == 0) { *v =  (left == right)? 1 : 0;} 
-    else if(strcmp(op,"!=") == 0) { *v =  (left != right)? 1 : 0;}
-    else if(strcmp(op,"<=") == 0) { *v =  (left <= right)? 1 : 0;} 
-    else if(strcmp(op,">=") == 0) { *v =  (left >= right)? 1 : 0;}
-    else if(strcmp(op,"and") == 0) { *v =  (left && right)? 1 : 0;} 
-    else if(strcmp(op,"or") == 0) {*v =  (left || right)? 1 : 0;}
-    else {v = NULL; free(v);}
-    
-    return v;
-}
-
-static int64_t *evaluate_int_unary_op(const char *op, int64_t operand) {
-    int64_t *v = malloc(sizeof(int64_t));
-
-    if (strcmp(op, "-") == 0) {*v = -operand;}
-    else if (strcmp(op, "+") == 0) {*v = +operand;}
-    else if (strcmp(op, "~") == 0) {*v = ~operand;}
-    else {v = NULL; free(v);}
-    
-    return v; 
-}
-
-//returns pointer to the expression
-static Expression *const_prop(Expression *expr, state *State) {
-    switch (expr->tag)
-    {
-    case (EXPR_NAME):
-        Int *val = malloc(sizeof(Int));
-        int64_t *var = search_vars(expr->name->name, State);
-        if (var == NULL){
-            free_int(val);
-            perror("couldnt evaluate the binary op");
-            exit(EXIT_FAILURE);
-        }
-        free_name(expr->name);
-        expr->tag = EXPR_INT;
-        expr->int_value = val;
-        expr->int_value->value = *var;
-        return expr;    
-    case (EXPR_INT):
-        return expr;
-    case (EXPR_BINARY_OP):
-        Expression l = *const_prop(expr->binary_op->left, State);
-        Expression r = *const_prop(expr->binary_op->right, State);
-
-        *expr->binary_op->left = l;
-        *expr->binary_op->right = r;
-
-        return expr;
-    case (EXPR_UNARY_OP):
-        Expression *e = const_prop(expr->unary_op->expression, State);
-
-        expr->unary_op->expression = e;
-        return expr; 
-    case (EXPR_FUNCTION_CALL):
-        Arguments* start = expr->function_call->args;
-        while (start != NULL) {
-            const_prop(start->arg,State);
-            start = start->next;
-        }
-        return expr;
-    default: //error
-        return NULL;
-    }
-    
-}
-
-
-static Expression *const_fold(Expression *expr, state *State) {
-    switch (expr->tag)
-    {
-    case (EXPR_NAME):
-        return const_prop(expr, State);
-    case (EXPR_INT):
-        return expr;
-    case (EXPR_BINARY_OP):
-        Expression l = *const_fold(expr->binary_op->left, State);
-        Expression r = *const_fold(expr->binary_op->right, State);
-        
-        if (l.tag == EXPR_INT && r.tag == EXPR_INT) {
-            Int *val = malloc(sizeof(Int));
-            int64_t *var = evaluate_int_binary_op(expr->binary_op->op, l.int_value->value, r.int_value->value);
-            if (var == NULL) {
-                free_int(val);
-                perror("couldnt evaluate the binary op");
-                exit(EXIT_FAILURE);
-            } 
-            free_binary_op(expr->binary_op);
-            expr->tag = EXPR_INT;
-            expr->int_value = val;
-            expr->int_value->value = *var;  
-            return expr;          
-        }
-        *expr->binary_op->left = l;
-        *expr->binary_op->right = r;
-        return expr;
-    case (EXPR_UNARY_OP):
-        Expression u = *const_fold(expr->unary_op->expression, State);
-
-        if (expr->tag == EXPR_INT) {
-            Int *val = malloc(sizeof(Int));
-            int64_t *var = evaluate_int_unary_op(expr->unary_op->op, u.int_value->value);
-            if (var == NULL) {
-                free_int(val);
-                perror("couldnt evaluate the binary op");
-                exit(EXIT_FAILURE);
-            } 
-            free_unary_op(expr->unary_op);
-            expr->tag = EXPR_INT;
-            expr->int_value = val;
-            expr->int_value->value = *var;  
-            return expr;          
-        }
-
-        *expr->unary_op->expression = u;
-        return expr;
-    case (EXPR_FUNCTION_CALL):
-        Arguments* start = expr->function_call->args;
-        while (start != NULL) {
-            const_fold(start->arg,State);
-            start = start->next;
-        }
-        return expr;            
-    default: // Function call 
-        break;
-    }
-    
 }
 
 int main(int argc, char const *argv[])
@@ -185,3 +68,16 @@ int main(int argc, char const *argv[])
     return 0;
 }
 
+
+
+
+// TODO: Flow return_address figuring out
+// TODO: Handle function calls in evalExpr
+// TODO: Augmented Assign
+// Load and Store instrctions
+// Directives Handling
+// TODO: fix header file errors
+// TODO: figure out how to handle function call evaluation
+// TODO: decided int64_t* or int64_t output for eval expression given it might not work 
+// TODO: implement registers intead of immediate value for statements in a Function def IR
+// TODO: more putBits

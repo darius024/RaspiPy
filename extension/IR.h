@@ -37,6 +37,16 @@ typedef enum {
     IR_DIR
 } IRType;
 
+
+typedef enum {
+    EQ, NE, GE, GT, LE, LT
+} BranchConditional;
+
+typedef struct {
+    Entry *map[MAX_VAR];
+    int map_size;
+} State;
+
 typedef struct IRInstruction {
     IRType type;
     int dest;

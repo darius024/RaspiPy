@@ -3,22 +3,39 @@
  * Parser Rules - Grammar
 */
 
+/*
+extern int yywrap(void);
+extern void yyerror(const char *s);
+extern int lineno;
+extern Program *program;
+*/
 %{
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "AST.h"
-#include "lex.yy.h"
+#include "types.h"
+#include "ast.h"
+
 
 extern int yylex(void);
-extern int yywrap(void);
-extern void yyerror(const char *s);
-extern int lineno;
+
+Program *program = NULL;
+int yyerrors = 0;
+
+void yyerror(const char *str) {
+    //fprintf(stderr, "Error on line %d: %s\n", yylineno, str);
+    yyerrors++;
+}
+
+int yywrap(void) {
+    return 1;
+}
 
 %}
-
+// all possible types of data associated with tokens
 %union {
+    randomStruct r;
     int num;
     char *str;
     Program *program;
@@ -65,9 +82,9 @@ extern int lineno;
 %type <parameters> parameters
 %type <arguments> arguments
 %type <expression> expression atom
-%type <binary_op> disjunction conjunction inversion comparison bitwise_or bitwise_xor bitwise_and shift_expr sum term
-%type <unary_op> factor
-%type <function_call> function_call
+%type <expression> disjunction conjunction inversion comparison bitwise_or bitwise_xor bitwise_and shift_expr sum term
+%type <expression> factor
+%type <expression> function_call
 
 
 %right RETURN
@@ -76,7 +93,7 @@ extern int lineno;
 
 %%
 program
-    : statements { $$ = create_program($1); }
+    : statements { program = create_program($1); }
     ;
 
 statements
@@ -98,16 +115,16 @@ simple_stmt
 
 assignment_stmt
     : NAME ASSIGN expression { $$ = create_assignment_stmt($1, $3); }
-    | NAME ADD_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("+=", create_expression(EXPR_NAME, create_name($1)), $3)); }
-    | NAME SUB_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("-=", create_expression(EXPR_NAME, create_name($1)), $3)); }
-    | NAME MUL_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("*=", create_expression(EXPR_NAME, create_name($1)), $3)); }
-    | NAME DIV_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("/=", create_expression(EXPR_NAME, create_name($1)), $3)); }
-    | NAME MOD_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("%=", create_expression(EXPR_NAME, create_name($1)), $3)); }
-    | NAME AND_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("&=", create_expression(EXPR_NAME, create_name($1)), $3)); }
-    | NAME OR_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("|=", create_expression(EXPR_NAME, create_name($1)), $3)); }
-    | NAME XOR_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("^=", create_expression(EXPR_NAME, create_name($1)), $3)); }
-    | NAME LEFT_SHIFT_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op("<<=", create_expression(EXPR_NAME, create_name($1)), $3)); }
-    | NAME RIGHT_SHIFT_ASSIGN expression { $$ = create_assignment_stmt($1, create_binary_op(">>=", create_expression(EXPR_NAME, create_name($1)), $3)); }
+    | NAME SUB_ASSIGN expression { $$ = create_assignment_stmt($1, create_expression(EXPR_BINARY_OP, create_binary_op("-=", create_expression(EXPR_NAME, create_name($1)), $3))); }
+    | NAME ADD_ASSIGN expression { $$ = create_assignment_stmt($1, create_expression(EXPR_BINARY_OP, create_binary_op("+=", create_expression(EXPR_NAME, create_name($1)), $3))); }
+    | NAME MUL_ASSIGN expression { $$ = create_assignment_stmt($1, create_expression(EXPR_BINARY_OP, create_binary_op("*=", create_expression(EXPR_NAME, create_name($1)), $3))); }
+    | NAME DIV_ASSIGN expression { $$ = create_assignment_stmt($1, create_expression(EXPR_BINARY_OP, create_binary_op("/=", create_expression(EXPR_NAME, create_name($1)), $3))); }
+    | NAME MOD_ASSIGN expression { $$ = create_assignment_stmt($1, create_expression(EXPR_BINARY_OP, create_binary_op("%=", create_expression(EXPR_NAME, create_name($1)), $3))); }
+    | NAME AND_ASSIGN expression { $$ = create_assignment_stmt($1, create_expression(EXPR_BINARY_OP, create_binary_op("&=", create_expression(EXPR_NAME, create_name($1)), $3))); }
+    | NAME OR_ASSIGN expression { $$ = create_assignment_stmt($1, create_expression(EXPR_BINARY_OP, create_binary_op("|=", create_expression(EXPR_NAME, create_name($1)), $3))); }
+    | NAME XOR_ASSIGN expression { $$ = create_assignment_stmt($1, create_expression(EXPR_BINARY_OP, create_binary_op("^=", create_expression(EXPR_NAME, create_name($1)), $3))); }
+    | NAME LEFT_SHIFT_ASSIGN expression { $$ = create_assignment_stmt($1, create_expression(EXPR_BINARY_OP, create_binary_op("<<=", create_expression(EXPR_NAME, create_name($1)), $3))); }
+    | NAME RIGHT_SHIFT_ASSIGN expression { $$ = create_assignment_stmt($1, create_expression(EXPR_BINARY_OP, create_binary_op(">>=", create_expression(EXPR_NAME, create_name($1)), $3))); }
     ;
 
 return_stmt
@@ -150,7 +167,7 @@ block
     ;
 
 expression
-    : disjunction { $$ = $1; }
+    : disjunction { $$ = create_expression(EXPR_BINARY_OP, $1); }
     ;
 
 disjunction
@@ -221,7 +238,7 @@ factor
     ;
 
 function_call
-    : NAME L_PAREN arguments R_PAREN { $$ = create_function_call($1, $3); }
+    : NAME L_PAREN arguments R_PAREN { $$ = create_expression(EXPR_FUNCTION_CALL, create_function_call($1, $3)); }
     ;
 
 arguments
@@ -231,19 +248,8 @@ arguments
     ;
 
 atom
-    : NAME { $$ = create_name(EXPR_NAME, create_name($1)); }
+    : NAME { $$ = create_expression(EXPR_NAME, create_name($1)); }
     | DEC_INTEGER { $$ = create_expression(EXPR_INT, create_int($1)); }
     | HEX_INTEGER { $$ = create_expression(EXPR_INT, create_int($1)); }
     | L_PAREN expression R_PAREN { $$ = $2; }
     ;
-
-%%
-
-void yyerror(const char *s) {
-    fprintf(stderr, "Error: %s\n", s);
-}
-
-int yywrap(void) {
-    return 1;
-}
-

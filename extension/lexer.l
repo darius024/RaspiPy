@@ -9,10 +9,10 @@
 #include <string.h>
 
 #include "parser.h"
-#include "y.tab.h"
+#include "ast.h"
 %}
 
-%option yylineno
+%option noinput nounput yylineno
 
 %%
 "and"          { return AND; }
@@ -46,7 +46,7 @@
 "<<"          { return LEFT_SHIFT; }
 ">>"          { return RIGHT_SHIFT; }
 "+"           { return ADD; }
-"-"           { return MINUS; }
+"-"           { return SUB; }
 "*"           { return MUL; }
 "/"           { return DIV; }
 "%"           { return MOD; }

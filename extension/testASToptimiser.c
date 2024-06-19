@@ -17,8 +17,8 @@
 
 typedef bool (*comparator) (void *actual, void *expected);
 
-static char mul = '*';
-static char minus = '-';
+static char *mul = "*";
+static char *minus = "-";
 
 /*
 bool same_Expression(Expression e1, Expression e2) {
@@ -212,15 +212,19 @@ void test_const_fold() {
     Expression *testingExpres[CONST_FOLD_TESTS_NUM];
     // (a * 3) - a2
     testingExpres[0] = create_expression(EXPR_BINARY_OP,
-        create_binary_op(&minus,
+        create_binary_op(minus,
             create_expression(EXPR_BINARY_OP,
-                create_binary_op(&mul, 
+                create_binary_op(mul, 
                     varExpres[0], create_expression(EXPR_INT, create_int(3)))), varExpres[2]));
     // a - B
     testingExpres[1] = create_expression(EXPR_BINARY_OP,
-        create_binary_op(&minus, 
+        create_binary_op(minus, 
             varExpres[0], varExpres[1]));
 
+    printf("%s\n", get_Expression_str(*testingExpres[1]));
+    printf("%s\n", get_Expression_str(*varExpres[0]));
+    printf("HERE %d\n", varExpres[2] -> tag);
+    // printf("BEFORE TAG%d\n", testingExpres[])
 
     // creating expected outputs
     Expression *expectedExpres[CONST_FOLD_TESTS_NUM];
@@ -278,25 +282,25 @@ void test_const_prop() {
     Expression *testingExpres[CONST_PROP_TESTS_NUM];
     // (a * B) - a2
     testingExpres[0] = create_expression(EXPR_BINARY_OP,
-        create_binary_op(&minus,
+        create_binary_op(minus,
             create_expression(EXPR_BINARY_OP,
-                create_binary_op(&mul, 
+                create_binary_op(mul, 
                     varExpres[0], varExpres[1])), varExpres[2]));
     // a - B
     testingExpres[1] = create_expression(EXPR_BINARY_OP,
-        create_binary_op(&minus, 
+        create_binary_op(minus, 
             varExpres[0], varExpres[1]));
 
 
     // creating expetected outputs
     Expression *expectedExpres[CONST_PROP_TESTS_NUM];
     expectedExpres[0] = create_expression(EXPR_BINARY_OP,
-        create_binary_op(&minus,
+        create_binary_op(minus,
             create_expression(EXPR_BINARY_OP,
-                create_binary_op(&mul, 
+                create_binary_op(mul, 
                     valueExpres[0], valueExpres[1])), valueExpres[2]));
     expectedExpres[1] = create_expression(EXPR_BINARY_OP,
-        create_binary_op(&minus, 
+        create_binary_op(minus, 
             valueExpres[0], valueExpres[1]));
 
     // creating actual oututs

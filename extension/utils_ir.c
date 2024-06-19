@@ -109,7 +109,7 @@ void freeNonVarRegister(State *state, uint8_t reg)
     }
 }
 
-IRProgram *push_to_stack(IRProgram *program, State *state, uint8_t reg, int *line)
+void push_to_stack(IRProgram *program, State *state, uint8_t reg, int *line)
 {
     IRInstruction *push = create_ir_instruction(IR_STR, reg, state->stack_size, NOT_USED, NOT_USED, line);
     push->dest->type = REG;
@@ -122,10 +122,9 @@ IRProgram *push_to_stack(IRProgram *program, State *state, uint8_t reg, int *lin
     stack->src1->type = REG;
     stack->src2->type = IMM;
     insertInstruction(program, stack, 0);
-    return program;
 }
 
-IRInstruction *pop_from_stack(IRProgram *program, State *state, uint8_t reg, int *line)
+void pop_from_stack(IRProgram *program, State *state, uint8_t reg, int *line)
 {
     IRInstruction *pop = create_ir_instruction(IR_LDR, reg, state->stack_size, NOT_USED, NOT_USED, line);
     pop->dest->type = REG;
@@ -137,7 +136,6 @@ IRInstruction *pop_from_stack(IRProgram *program, State *state, uint8_t reg, int
     stack->src1->type = REG;
     stack->src2->type = IMM;
     insertInstruction(program, stack, 0);
-    return pop;
 }
 
 

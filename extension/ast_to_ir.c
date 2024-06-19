@@ -208,7 +208,10 @@ IRProgram *AST_to_IR(Program *prog, State *state)
     IRProgram *program = create_ir_program();
     State *state = create_state();
 
+    // Set up SP
     int line = 0;
+    IRInstruction *set_sp = create_ir_instruction(IR_MOVZ, SP, state->stack_size, NOT_USED, NOT_USED, &line);
+    insertInstruction(program, set_sp, 1);
 
     Statements_to_IR(program, prog->statements, state, &line, 1);
 

@@ -19,7 +19,7 @@ void insertInstruction(IRProgram *program, IRInstruction *instruction, int count
 void insertProgram(IRProgram *program, IRProgram *block);
 int64_t searchName(char *name, State *state);
 void updateState(State *state, uint8_t reg, int64_t value);
-IRProgram *push_to_stack(IRProgram *program, State *state, uint8_t reg, int *line);
-IRInstruction *pop_from_stack(IRProgram *program, State *state, uint8_t reg, int *line);
+void push_to_stack(IRProgram *program, State *state, uint8_t reg, int *line);
+void pop_from_stack(IRProgram *program, State *state, uint8_t reg, int *line);
 
 #endif 

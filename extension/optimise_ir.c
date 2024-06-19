@@ -79,11 +79,13 @@ Expression *const_prop(Expression *expr, State *state)
             return expr;
         }
         default: {
+            printf("EXITED AT DEFAULT\n");
             exit(EXIT_FAILURE);
         }
     }
 }
 
+// assumes all variables within expr have values stored in state
 Expression *const_fold(Expression *expr, State *state)
 {
     switch (expr->tag) {

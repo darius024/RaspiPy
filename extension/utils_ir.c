@@ -61,7 +61,7 @@ uint8_t getRegister(Name *name, State *state)
     }
     // Not found
     // Create new register for that variable
-    strcpy(state->map[state->map_size].name, name);
+    strcpy(state->map[state->map_size].name, name -> name);
     state->map[state->map_size].value = 0;
     state->map[state->map_size].reg = getNextFreeRegister(state);
     return state->map[state->map_size++].reg;
@@ -109,7 +109,7 @@ void freeNonVarRegister(State *state, uint8_t reg)
     }
 }
 
-void push_to_stack(Program *program, State *state, uint8_t reg, int *line)
+IRProgram *push_to_stack(IRProgram *program, State *state, uint8_t reg, int *line)
 {
     IRInstruction *push = create_ir_instruction(IR_STR, reg, state->stack_size, NOT_USED, NOT_USED, line);
     push->dest->type = REG;
@@ -125,7 +125,7 @@ void push_to_stack(Program *program, State *state, uint8_t reg, int *line)
     return program;
 }
 
-void pop_from_stack(Program *program, State *state, uint8_t reg, int *line)
+IRInstruction *pop_from_stack(IRProgram *program, State *state, uint8_t reg, int *line)
 {
     IRInstruction *pop = create_ir_instruction(IR_LDR, reg, state->stack_size, NOT_USED, NOT_USED, line);
     pop->dest->type = REG;
@@ -141,22 +141,20 @@ void pop_from_stack(Program *program, State *state, uint8_t reg, int *line)
 }
 
 
-void saveRegister(Program *program, State *state, uint8_t reg, int *line)
+void saveRegister(IRProgram *program, State *state, uint8_t reg, int *line)
 {
     // Save in caller/calle saved
     push_to_stack(program, state, reg + 8, line);
     IRInstruction *call_saved = create_ir_instruction(IR_MOV, reg + 8, reg, NOT_USED, NOT_USED, line);
     insertInstruction(program, call_saved, 0);
-    return program;
 }
 
-void restoreRegister(Program *program, State *state, uint8_t reg, int *line)
+void restoreRegister(IRProgram *program, State *state, uint8_t reg, int *line)
 {
     // Restore from caller/calle saved
     IRInstruction *call_saved = create_ir_instruction(IR_MOV, reg, reg + 8, NOT_USED, NOT_USED, line);
     insertInstruction(program, call_saved, 0);
     pop_from_stack(program, state, reg + 8, line);
-    return program;
 }
 
 void insertInstruction(IRProgram *program, IRInstruction *instruction, int count_update)

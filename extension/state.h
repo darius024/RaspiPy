@@ -1,3 +1,6 @@
+#ifndef STATE_H
+#define STATE_H
+
 #include "hotspot.h"
 #include <stdint.h>
 #include <stdlib.h>
@@ -36,3 +39,5 @@ typedef struct {
 
 extern State *create_state(void);
 extern void free_state(State *state);
+
+#endif

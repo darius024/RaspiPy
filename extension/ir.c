@@ -5,6 +5,8 @@
 
 #include "ir.h"
 
+int registers[NUM_REGISTERS];
+
 IRProgram* create_ir_program(void)
 {
     IRProgram *program = malloc(sizeof(IRProgram));
@@ -44,10 +46,10 @@ IRInstruction *create_ir_instruction(IRType type, int dest, int src1, int src2, 
     return instruction;
 }
 
-void free_ir_instruction(IRInstruction *instruction)
+void free_ir_instruction(struct IRInstruction *instruction)
 {
     while (instruction) {
-        IRInstruction* next = instruction->next;
+        struct IRInstruction* next = instruction->next;
         free(instruction);
         instruction = next;
     }

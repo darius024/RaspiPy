@@ -11,7 +11,7 @@ LFLAGS = -l
 
 # Object files
 TEST_OBJS = testASToptimiser.o ast.o ir.o optimise_ir.o utils_ir.o
-PARSER_OBJS = ast.o parser.o lexer.o ../src/io.o main.o
+PARSER_OBJS = ast.o parser.o lexer.o ../src/io.o testAST.o
 
 # Target executables
 TARGET = test parse
@@ -44,5 +44,5 @@ parser.c parser.h: parser.y
 
 # Clean rule to remove generated files
 clean:
-	$(RM) $(TEST_OBJS) $(PARSER_OBJS) $(TARGET) $(DEP) $(PARSER_GENERATED) parser test
+	$(RM) $(TEST_OBJS) $(PARSER_OBJS) $(TARGET) $(DEP) $(PARSER_GENERATED)
 	

@@ -1,4 +1,5 @@
 #include "ast.h"
+#include <inttypes.h>
 
 // Create functions
 Program *create_program(Statements *statements) {
@@ -133,6 +134,11 @@ FunctionCall *create_function_call(char *name, Arguments *args) {
     FunctionCall *function_call = (FunctionCall *)malloc(sizeof(FunctionCall));
     function_call->name = strdup(name);
     function_call->args = args;
+    int count = 0;
+    for (Arguments *current = args ; current != NULL ; current = current -> next) {
+        count++;
+    }
+    function_call->arg_count = count;
     return function_call;
 }
 

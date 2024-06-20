@@ -190,4 +190,6 @@ void free_unary_op(UnaryOp *unary_op);
 void free_function_call(FunctionCall *function_call);
 void free_expression(Expression *expression);
 
+// void print_ast(Program *)
+
 #endif

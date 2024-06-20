@@ -161,11 +161,11 @@ parameters
     ;
 
 block
-    : INDENT statements DEDENT { $$ = $2; }
+    : statements { $$ = $1; }
     ;
 
 expression
-    : disjunction { $$ = create_expression(EXPR_BINARY_OP, $1); }
+    : disjunction { $$ = $1; }
     ;
 
 disjunction

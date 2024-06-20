@@ -62,29 +62,29 @@ bool same_Expression(Expression e1, Expression e2) {
 }
 */
 
-char *get_Expression_str(Expression e) {
+static char *get_Expression_str(Expression *e) {
     char *str;
-    switch(e.tag) {
+    switch(e -> tag) {
         case EXPR_NAME:
-            // e.name is a pointer to Name, which is a struct containing char *name
-            str = malloc((strlen(e.name -> name) + 1) * sizeof(char));
+            // e -> name is a pointer to Name, which is a struct containing char *name
+            str = malloc((strlen(e -> name -> name) + 1) * sizeof(char));
             if (str == NULL) {
                 exit(EXIT_FAILURE);
             }
-            strcpy(str, e.name -> name);
+            strcpy(str, e -> name -> name);
             break;
         case EXPR_INT: {
             str = malloc(INT_MAX_CHARS * sizeof(char));
             if (str == NULL) {
                 exit(EXIT_FAILURE);
             }
-            snprintf(str, INT_MAX_CHARS * sizeof(char), "%" PRId64, e.int_value -> value);
+            snprintf(str, INT_MAX_CHARS * sizeof(char), "%" PRId64, e -> int_value -> value);
             break;
         }
         case EXPR_BINARY_OP: {
-            BinaryOp *b = e.binary_op;
-            char *s1 = get_Expression_str(*(b -> left));
-            char *s2 = get_Expression_str(*(b -> right));
+            BinaryOp *b = e -> binary_op;
+            char *s1 = get_Expression_str((b -> left));
+            char *s2 = get_Expression_str((b -> right));
             str = malloc(strlen(s1) + strlen(s2) + strlen(b -> op) + 5);
             
             // combining strings
@@ -113,8 +113,8 @@ char *get_Expression_str(Expression e) {
             break;
         }
         case EXPR_UNARY_OP: {
-            UnaryOp *u1 = e.unary_op;
-            char *s1 = get_Expression_str(*(u1 -> expression));
+            UnaryOp *u1 = e -> unary_op;
+            char *s1 = get_Expression_str((u1 -> expression));
             str = malloc(strlen(s1) + strlen(u1 -> op) + 3);
             
             // combining
@@ -131,7 +131,7 @@ char *get_Expression_str(Expression e) {
             break;
         }
         case EXPR_FUNCTION_CALL: {
-            FunctionCall *fc = e.function_call;
+            FunctionCall *fc = e -> function_call;
             int arg_num = fc -> arg_count;
             char **arg_exprs = malloc(arg_num * sizeof(char *));
             int params_size = 0;
@@ -139,7 +139,7 @@ char *get_Expression_str(Expression e) {
             char *arg_str;
             int i = 0;
             for (Arguments *args = fc -> args ; args != NULL ; args = args -> next) {
-                arg_str = get_Expression_str(*(args -> arg));
+                arg_str = get_Expression_str((args -> arg));
                 arg_exprs[i] = arg_str;
                 params_size += strlen(arg_str);
                 i++;
@@ -152,17 +152,22 @@ char *get_Expression_str(Expression e) {
             p += strlen(fc -> name);
             *p = '(';
             p += 1;
-
+            printf("arg num %d\n", arg_num);
+            
             for (int i = 0 ; i < arg_num ; i++) {
+                // printf("WHAT %s length %ld\n", arg_exprs[i], strlen(arg_exprs[i]));
                 strcpy(p, arg_exprs[i]);
                 p += strlen(arg_exprs[i]);
                 strcpy(p, ", ");
 
                 free(arg_exprs[i]);
                 p += 2;
+                
             }
-            p -= 2; // backtrack to get rid of last ", "
-            *p = ')';
+            if (arg_num >= 1) {
+                p -= 2; // backtrack to get rid of last ", "
+                *p = ')';
+            }
             free(arg_exprs);
             break;
          }
@@ -170,7 +175,8 @@ char *get_Expression_str(Expression e) {
     return str;
 }
 
-bool same_representation(Expression e1, Expression e2) {
+
+bool same_representation(Expression *e1, Expression *e2) {
     return (strcmp(get_Expression_str(e1), get_Expression_str(e2)));
 }
 
@@ -220,12 +226,6 @@ void test_const_fold() {
     testingExpres[1] = create_expression(EXPR_BINARY_OP,
         create_binary_op(minus, 
             varExpres[0], varExpres[1]));
-
-    printf("%s\n", get_Expression_str(*testingExpres[1]));
-    printf("%s\n", get_Expression_str(*varExpres[0]));
-    printf("HERE %d\n", varExpres[2] -> tag);
-    // printf("BEFORE TAG%d\n", testingExpres[])
-
     // creating expected outputs
     Expression *expectedExpres[CONST_FOLD_TESTS_NUM];
     // 17
@@ -242,14 +242,14 @@ void test_const_fold() {
     // comparing
     for (int i = 0 ; i < CONST_FOLD_TESTS_NUM ; i++) {
         if (strcmp(
-            get_Expression_str(*actualExpres[i]),
-            get_Expression_str(*expectedExpres[i])) == 0) {
+            get_Expression_str(actualExpres[i]),
+            get_Expression_str(expectedExpres[i])) == 0) {
                 printf("Test %d OK\n", i);
             }
         else {
             printf("Test %d FAIL\n", i);
-            printf("   Expected %s\n", get_Expression_str(*expectedExpres[i]));
-            printf("   Got %s\n", get_Expression_str(*actualExpres[i]));
+            printf("   Expected %s\n", get_Expression_str(expectedExpres[i]));
+            printf("   Got %s\n", get_Expression_str(actualExpres[i]));
         }
     }   
 }
@@ -312,19 +312,25 @@ void test_const_prop() {
     // comparing
     for (int i = 0 ; i < CONST_PROP_TESTS_NUM ; i++) {
         if (strcmp(
-            get_Expression_str(*actualExpres[i]),
-            get_Expression_str(*expectedExpres[i])) == 0) {
+            get_Expression_str(actualExpres[i]),
+            get_Expression_str(expectedExpres[i])) == 0) {
                 printf("Test %d OK\n", i);
             }
         else {
             printf("Test %d FAIL\n", i);
-            printf("   Expected %s\n", get_Expression_str(*expectedExpres[i]));
-            printf("   Got %s\n", get_Expression_str(*actualExpres[i]));
+            printf("   Expected %s\n", get_Expression_str(expectedExpres[i]));
+            printf("   Got %s\n", get_Expression_str(actualExpres[i]));
         }
     }   
 }
 
 int main(void) {
+    printf("%s\n", 
+    get_Expression_str(create_expression(
+        EXPR_FUNCTION_CALL, create_function_call("range", 
+        create_arguments(create_expression(EXPR_INT, create_int(5)), NULL))))
+    );
+
     test_const_prop();
     test_const_fold();
     return 0;

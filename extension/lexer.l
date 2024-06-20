@@ -10,6 +10,40 @@
 
 #include "parser.h"
 #include "ast.h"
+
+// Stack to hold indentation levels
+#define MAX_INDENT 100
+int indent_stack[MAX_INDENT];
+int indent_top = 0;
+
+// Current indentation level
+int current_indent = 0;
+
+void push_indent(int indent) {
+    if (indent_top < MAX_INDENT) {
+        indent_stack[indent_top++] = indent;
+    } else {
+        fprintf(stderr, "Indentation stack overflow\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+int pop_indent() {
+    if (indent_top > 0) {
+        return indent_stack[--indent_top];
+    } else {
+        fprintf(stderr, "Indentation stack underflow\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+int get_top_indent() {
+    if (indent_top > 0) {
+        return indent_stack[indent_top - 1];
+    } else {
+        return 0;
+    }
+}
 %}
 
 %option noinput nounput yylineno
@@ -71,6 +105,27 @@
 
 "#"[^\r\n]*   { /* Skip comments */ }
 
-[ \r\t\n]+    { /* ignore whitespace */; }
+\n {
+    int i;
+    int new_indent = 0;
+    while (yytext[i] == ' ') {
+        new_indent++;
+        i++;
+    }
+    if (new_indent > get_top_indent()) {
+        push_indent(new_indent);
+        return INDENT;
+    } else if (new_indent < get_top_indent()) {
+        while (new_indent < get_top_indent()) {
+            pop_indent();
+            return DEDENT;
+        }
+    }
+}
+
+[ \r\t]+      { /* ignore whitespace */ }
+
+.             { return yytext[0]; } // Default rule to return single characters
 
 %%
+

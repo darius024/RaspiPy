@@ -99,6 +99,7 @@ enum type identifyType(char *instrname)
     if (checkWordInArray(instrname, dataProcessing, DATA_PROCESSING_SIZE)) { // Data Processing
         return dp;
     }
+    fprintf(stderr, "Instruction name: %s\n", instrname);
     EXIT_PROGRAM("Unsupported instruction name (mnemonic).");
 }
 

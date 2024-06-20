@@ -14,6 +14,7 @@
 
 %option noinput nounput yylineno
 
+
 %%
 "and"          { return AND; }
 "break"        { return BREAK; }

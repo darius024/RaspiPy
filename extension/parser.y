@@ -14,7 +14,6 @@ extern Program *program;
 #include <stdlib.h>
 #include <string.h>
 
-#include "types.h"
 #include "ast.h"
 
 
@@ -35,26 +34,25 @@ int yywrap(void) {
 %}
 // all possible types of data associated with tokens
 %union {
-    randomStruct r;
     int num;
     char *str;
-    Program *program;
-    Statements *statements;
-    Statement *statement;
-    AssignmentStmt *assignment_stmt;
-    FlowStmt *flow_stmt;
-    IfStmt *if_stmt;
-    WhileStmt *while_stmt;
-    ForStmt *for_stmt;
-    FunctionDef *function_def;
-    Parameters *parameters;
-    Arguments *arguments;
-    Expression *expression;
-    Name *name;
-    Int *int_value;
-    BinaryOp *binary_op;
-    UnaryOp *unary_op;
-    FunctionCall *function_call;
+    struct Program *program;
+    struct Statements *statements;
+    struct Statement *statement;
+    struct AssignmentStmt *assignment_stmt;
+    struct FlowStmt *flow_stmt;
+    struct IfStmt *if_stmt;
+    struct WhileStmt *while_stmt;
+    struct ForStmt *for_stmt;
+    struct FunctionDef *function_def;
+    struct Parameters *parameters;
+    struct Arguments *arguments;
+    struct Expression *expression;
+    struct Name *name;
+    struct Int *int_value;
+    struct BinaryOp *binary_op;
+    struct UnaryOp *unary_op;
+    struct FunctionCall *function_call;
 }
 
 %token <num> DEC_INTEGER HEX_INTEGER 

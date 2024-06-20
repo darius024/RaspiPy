@@ -306,21 +306,20 @@ void print_ast(Statements *statements) {
         }
         case FUNCTION_DEF: {
             FunctionDef *function_def = statements -> statement -> function_def;
-            printf("%s(", function_def -> name);
+            printf("def %s(", function_def -> name);
             for (Parameters *current = function_def -> parameters ; current != NULL ; current = current -> next) {
                 if (current -> next != NULL) {
                     printf("%s, ", current -> parameter -> name);
                 }
                 // is last parameter
                 else {
-                    printf("%s)\n", current -> parameter -> name);
-
+                    printf("%s):\n", current -> parameter -> name);
                 }
-                
             }
+            print_ast(function_def -> body);
         }
         default: {
-            printf("hi");
+
             break;
         }
     }
@@ -452,6 +451,47 @@ void testLoops() {
     // Create program
     expectedPrograms[0] = create_program(loop1_statements);
 
+    // loop2.py
+    // count = 0
+    // while (count < 5):
+    //     count = count + 1
+
+    // Create initial count assignment
+    Int *loop2_int_0 = create_int(0);
+    Expression *loop2_expr_0 = create_expression(EXPR_INT, loop2_int_0);
+    AssignmentStmt *loop2_assign_count_0 = create_assignment_stmt("count", loop2_expr_0);
+    Statement *loop2_stmt1 = create_statement(ASSIGNMENT_STMT, loop2_assign_count_0);
+
+    // Create while loop condition
+    Name *loop2_name_count1 = create_name("count");
+    Expression *loop2_expr_count1 = create_expression(EXPR_NAME, loop2_name_count1);
+    Int *loop2_int_5 = create_int(5);
+    Expression *loop2_expr_5 = create_expression(EXPR_INT, loop2_int_5);
+    BinaryOp *loop2_binary_op_less = create_binary_op("<", loop2_expr_count1, loop2_expr_5);
+    Expression *loop2_expr_count_less_5 = create_expression(EXPR_BINARY_OP, loop2_binary_op_less);
+
+    // Create increment count expression inside while loop
+    Name *loop2_name_count3 = create_name("count");
+    Expression *loop2_expr_count3 = create_expression(EXPR_NAME, loop2_name_count3);
+    Int *loop2_int_1 = create_int(1);
+    Expression *loop2_expr_1 = create_expression(EXPR_INT, loop2_int_1);
+    BinaryOp *loop2_binary_op_plus = create_binary_op("+", loop2_expr_count3, loop2_expr_1);
+    Expression *loop2_expr_count_plus_1 = create_expression(EXPR_BINARY_OP, loop2_binary_op_plus);
+    AssignmentStmt *loop2_assign_count = create_assignment_stmt("count", loop2_expr_count_plus_1);
+    Statement *loop2_stmt_body = create_statement(ASSIGNMENT_STMT, loop2_assign_count);
+
+    // Create while loop statement
+    Statements *loop2_body = create_statements(loop2_stmt_body, NULL);
+    WhileStmt *loop2_while_stmt = create_while_stmt(loop2_expr_count_less_5, loop2_body);
+    Statement *loop2_stmt2 = create_statement(WHILE_STMT, loop2_while_stmt);
+
+    // Link statements
+    Statements *loop2_statements2 = create_statements(loop2_stmt2, NULL);
+    Statements *loop2_statements1 = create_statements(loop2_stmt1, loop2_statements2);
+
+    // Create program
+    expectedPrograms[1] = create_program(loop2_statements1);
+
     // printing for debugging
     print_program(expectedPrograms[0]);
     
@@ -481,21 +521,134 @@ void testLoops() {
 }
 
 
-
-/*
 void testFunDefs() {
-    exit(EXIT_FAILURE);
+    // Creating expected results
+    Program *expectedPrograms[testFunNum];
+
+    // fun1.py
+    // def add(a, b):
+    //    return a + b
+    // a = 0
+    // a = add(1, 2)
+
+    // Create return expression for add
+    Name *fun1_name_a1 = create_name("a");
+    Name *fun1_name_b1 = create_name("b");
+    Expression *fun1_expr_a1 = create_expression(EXPR_NAME, fun1_name_a1);
+    Expression *fun1_expr_b1 = create_expression(EXPR_NAME, fun1_name_b1);
+    BinaryOp *fun1_binary_op_add = create_binary_op("+", fun1_expr_a1, fun1_expr_b1);
+    Expression *fun1_expr_add = create_expression(EXPR_BINARY_OP, fun1_binary_op_add);
+    FlowStmt *fun1_return_stmt_add = create_flow_stmt("return", fun1_expr_add);
+    Statement *fun1_stmt_return_add = create_statement(FLOW_STMT, fun1_return_stmt_add);
+
+    // Create function add definition
+    Parameters *fun1_param_b = create_parameters(fun1_name_b1, NULL);
+    Parameters *fun1_param_a = create_parameters(fun1_name_a1, fun1_param_b);
+    Statements *fun1_body_add = create_statements(fun1_stmt_return_add, NULL);
+    FunctionDef *fun1_function_add = create_function_def("add", fun1_param_a, fun1_body_add);
+    Statement *fun1_stmt_function_add = create_statement(FUNCTION_DEF, fun1_function_add);
+
+    // Create initial assignment a = 0
+    Int *fun1_int_0 = create_int(0);
+    Expression *fun1_expr_0 = create_expression(EXPR_INT, fun1_int_0);
+    AssignmentStmt *fun1_assign_a_0 = create_assignment_stmt("a", fun1_expr_0);
+    Statement *fun1_stmt_assign_a_0 = create_statement(ASSIGNMENT_STMT, fun1_assign_a_0);
+
+    // Create assignment a = add(1, 2)
+    Int *fun1_int_1 = create_int(1);
+    Int *fun1_int_2 = create_int(2);
+    Expression *fun1_expr_1 = create_expression(EXPR_INT, fun1_int_1);
+    Expression *fun1_expr_2 = create_expression(EXPR_INT, fun1_int_2);
+    Arguments *fun1_args_2 = create_arguments(fun1_expr_2, NULL);
+    Arguments *fun1_args_1 = create_arguments(fun1_expr_1, fun1_args_2);
+    FunctionCall *fun1_call_add = create_function_call("add", fun1_args_1);
+    Expression *fun1_expr_call_add = create_expression(EXPR_FUNCTION_CALL, fun1_call_add);
+    AssignmentStmt *fun1_assign_a_add = create_assignment_stmt("a", fun1_expr_call_add);
+    Statement *fun1_stmt_assign_a_add = create_statement(ASSIGNMENT_STMT, fun1_assign_a_add);
+
+    // Link statements
+    Statements *fun1_statements3 = create_statements(fun1_stmt_assign_a_add, NULL);
+    Statements *fun1_statements2 = create_statements(fun1_stmt_assign_a_0, fun1_statements3);
+    Statements *fun1_statements1 = create_statements(fun1_stmt_function_add, fun1_statements2);
+
+    // Create program
+    expectedPrograms[0] = create_program(fun1_statements1);
+
+    // fun2.py
+    // def sub(a, b):
+    //    return a - b
+    // a = 0
+    // a = sub(a, 3)
+
+    // Create return expression for sub
+    Name *fun2_name_a1 = create_name("a");
+    Name *fun2_name_b1 = create_name("b");
+    Expression *fun2_expr_a1 = create_expression(EXPR_NAME, fun2_name_a1);
+    Expression *fun2_expr_b1 = create_expression(EXPR_NAME, fun2_name_b1);
+    BinaryOp *fun2_binary_op_sub = create_binary_op("-", fun2_expr_a1, fun2_expr_b1);
+    Expression *fun2_expr_sub = create_expression(EXPR_BINARY_OP, fun2_binary_op_sub);
+    FlowStmt *fun2_return_stmt_sub = create_flow_stmt("return", fun2_expr_sub);
+    Statement *fun2_stmt_return_sub = create_statement(FLOW_STMT, fun2_return_stmt_sub);
+
+    // Create function sub definition
+    Parameters *fun2_param_b = create_parameters(fun2_name_b1, NULL);
+    Parameters *fun2_param_a = create_parameters(fun2_name_a1, fun2_param_b);
+    Statements *fun2_body_sub = create_statements(fun2_stmt_return_sub, NULL);
+    FunctionDef *fun2_function_sub = create_function_def("sub", fun2_param_a, fun2_body_sub);
+    Statement *fun2_stmt_function_sub = create_statement(FUNCTION_DEF, fun2_function_sub);
+
+    // Create initial assignment a = 0
+    Int *fun2_int_0 = create_int(0);
+    Expression *fun2_expr_0 = create_expression(EXPR_INT, fun2_int_0);
+    AssignmentStmt *fun2_assign_a_0 = create_assignment_stmt("a", fun2_expr_0);
+    Statement *fun2_stmt_assign_a_0 = create_statement(ASSIGNMENT_STMT, fun2_assign_a_0);
+
+    // Create assignment a = sub(a, 3)
+    Name *fun2_name_a2 = create_name("a");
+    Expression *fun2_expr_a2 = create_expression(EXPR_NAME, fun2_name_a2);
+    Int *fun2_int_3 = create_int(3);
+    Expression *fun2_expr_3 = create_expression(EXPR_INT, fun2_int_3);
+    Arguments *fun2_args_3 = create_arguments(fun2_expr_3, NULL);
+    Arguments *fun2_args_a = create_arguments(fun2_expr_a2, fun2_args_3);
+    FunctionCall *fun2_call_sub = create_function_call("sub", fun2_args_a);
+    Expression *fun2_expr_call_sub = create_expression(EXPR_FUNCTION_CALL, fun2_call_sub);
+    AssignmentStmt *fun2_assign_a_sub = create_assignment_stmt("a", fun2_expr_call_sub);
+    Statement *fun2_stmt_assign_a_sub = create_statement(ASSIGNMENT_STMT, fun2_assign_a_sub);
+
+    // Link statements
+    Statements *fun2_statements3 = create_statements(fun2_stmt_assign_a_sub, NULL);
+    Statements *fun2_statements2 = create_statements(fun2_stmt_assign_a_0, fun2_statements3);
+    Statements *fun2_statements1 = create_statements(fun2_stmt_function_sub, fun2_statements2);
+
+    // Create program
+    expectedPrograms[1] = create_program(fun2_statements1);
+
+    // Comparing
+    for (int i = 0; i < testFunNum; i++) {
+        yyin = loadInputFile(funFiles[i], NULL, &r);
+        if (yyparse() == 0) {
+            if (sameProgram(expectedPrograms[i], program)) {
+                printf("TEST %d OK\n", i);
+            } else {
+                printf("FAIL\n");
+                printf("  EXPECTED\n");
+                print_program(expectedPrograms[i]);
+                printf("    GOT\n");
+                print_program(program);
+            }
+        } else {
+            fprintf(stderr, "Parsing failed\n");
+            exit(EXIT_FAILURE);
+        }
+    }
 }
 
-void testCombined() {
-    exit(EXIT_FAILURE);
-}
-*/
+
 
 
 int main(void) {
     // testAssignments();
-    testLoops();
-
+    // testLoops();
+    testFunDefs();
     return 0;
 }

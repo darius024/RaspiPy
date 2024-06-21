@@ -3,6 +3,7 @@
 #ifndef DISASSEMBLER_H
 #define DISASSEMBLER_H
 
+#include "datatypes_as.h"
 #include "structs.h"
 
 

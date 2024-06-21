@@ -49,7 +49,7 @@ typedef enum {
 } IRType;
 
 typedef enum {
-    EQ, NE, GE, GT, LE, LT
+    B_EQ, B_NE, B_GE, B_GT, B_LE, B_LT
 } BranchConditional;
 
 typedef enum {

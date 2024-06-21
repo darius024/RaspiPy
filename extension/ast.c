@@ -8,11 +8,24 @@ Program *create_program(Statements *statements) {
     return program;
 }
 
-Statements *create_statements(Statement *statement, Statements *next) {
+Statements *create_statements(Statement *statement) {
     Statements *statements = (Statements *)malloc(sizeof(Statements));
     statements->statement = statement;
-    statements->next = next;
+    statements->next = NULL;
     return statements;
+}
+
+Statements* append_statements(Statements *stmts, Statement *stmt) {
+    if (stmts == NULL) {
+        return create_statements(stmt);
+    } else {
+        Statements *current = stmts;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = create_statements(stmt);
+        return stmts;
+    }
 }
 
 Statement *create_statement(StatementTag tag, void *stmt) {
@@ -89,18 +102,44 @@ FunctionDef *create_function_def(char *name, Parameters *parameters, Statements 
     return function_def;
 }
 
-Parameters *create_parameters(Name *parameter, Parameters *next) {
+Parameters *create_parameters(Name *parameter) {
     Parameters *parameters = (Parameters *)malloc(sizeof(Parameters));
     parameters->parameter = parameter;
-    parameters->next = next;
+    parameters->next = NULL;
     return parameters;
 }
 
-Arguments *create_arguments(Expression *expression, Arguments *next) {
+Parameters* append_parameters(Parameters *params, Name *name) {
+    if (params == NULL) {
+        return create_parameters(name);
+    } else {
+        Parameters *current = params;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = create_parameters(name);
+        return params;
+    }
+}
+
+Arguments *create_arguments(Expression *expression) {
     Arguments *arguments = (Arguments *)malloc(sizeof(Arguments));
     arguments->arg = expression;
-    arguments->next = next;
+    arguments->next = NULL;
     return arguments;
+}
+
+Arguments* append_arguments(Arguments *args, Expression *expr) {
+    if (args == NULL) {
+        return create_arguments(expr);
+    } else {
+        Arguments *current = args;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = create_arguments(expr);
+        return args;
+    }
 }
 
 Name *create_name(char *name) {

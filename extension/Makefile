@@ -10,8 +10,8 @@ LFLAGS = -l
 .PHONY: all clean
 
 # Object files
-TEST_OBJS = testASToptimiser.o ast.o ir.o optimise_ir.o utils_ir.o
-PARSER_OBJS = ast.o parser.o lexer.o ../src/io.o testAST.o
+TEST_OBJS = testASToptimiser.o ast.o ir.o optimise_ir.o utils_ir.o ast_to_ir.o state.o hotspot.o
+PARSER_OBJS = ast.o parser.o lexer.o ../src/io.o testAST.o testIR.o ast_to_ir.o utils_ir.o eval.o ir.o state.o hotspot.o
 
 # Target executables
 TARGET = test parse

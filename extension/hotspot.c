@@ -5,10 +5,12 @@
 #include "ast.h"
 #include "hotspot.h"
 #include "ir.h"
-#include "src/datatypes_as.h"
-#include "src/decoders.h"
-#include "src/disassembler.h"
-#include "src/utils_as.h"
+#include "state.h"
+#include "../src/io.h"
+#include "../src/datatypes_as.h"
+#include "../src/decoders.h"
+#include "../src/disassembler.h"
+#include "../src/utils_as.h"
 
 #define GENERATE_STRING(enum_type) #enum_type
 
@@ -55,7 +57,7 @@ static void putRegOrImm(char *assembly_line, Token *token)
     }
 }
 
-static uint32_t getHotSpot(IRInstruction *ir_instr)
+uint32_t getHotSpot(IRInstruction *ir_instr)
 {
     char assembly_line[MAX_ASSEMBLY_LINE] = "";
     putMnemonic(assembly_line, ir_instr->type);
@@ -92,7 +94,7 @@ static uint32_t getHotSpot(IRInstruction *ir_instr)
     return instrBin;
 }
 
-static void addHotSpot(uint32_t instrBin, int line)
+void addHotSpot(uint32_t instrBin, int line)
 {
     hotspots[hotspots_count].instruction = instrBin;
     hotspots[hotspots_count++].line = line;

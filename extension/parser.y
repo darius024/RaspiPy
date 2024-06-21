@@ -96,7 +96,7 @@ program
 
 statements
     : /* empty */ { $$ = NULL; }
-    | statements statement { $$ = create_statements($2, $1); }
+    | statements statement { $$ = append_statements($1, $2); }
     ;
 
 statement
@@ -155,8 +155,8 @@ function_def
     ;
 
 parameters
-    : parameters COMMA NAME { $$ = create_parameters(create_name($3), $1); }
-    | NAME { $$ = create_parameters(create_name($1), NULL); }
+    : parameters COMMA NAME { $$ = append_parameters($1, create_name($3)); }
+    | NAME { $$ = create_parameters(create_name($1)); }
     | /* empty */ { $$ = NULL; }
     ;
 
@@ -231,7 +231,7 @@ factor
     : ADD factor { $$ = create_expression(EXPR_UNARY_OP, create_unary_op("+", $2)); }
     | SUB factor { $$ = create_expression(EXPR_UNARY_OP, create_unary_op("-", $2)); }
     | NEG factor { $$ = create_expression(EXPR_UNARY_OP, create_unary_op("~", $2)); }
-    | function_call { $$ = create_expression(EXPR_FUNCTION_CALL, $1); }
+    | function_call { $$ = $1; }
     | atom { $$ = $1; }
     ;
 
@@ -240,8 +240,8 @@ function_call
     ;
 
 arguments
-    : arguments COMMA expression { $$ = create_arguments($3, $1); }
-    | expression { $$ = create_arguments($1, NULL); }
+    : arguments COMMA expression { $$ = append_arguments($1, $3); }
+    | expression { $$ = create_arguments($1); }
     | /* empty */ { $$ = NULL; }
     ;
 

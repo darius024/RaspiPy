@@ -6,6 +6,9 @@
 #include "lexer.h"
 #include "../src/io.h"
 
+#include "testIR.h"
+#include "ast_to_ir.h"
+
 #define testAssignmentsNum 2
 #define testLoopsNum 2
 #define testFunNum 2
@@ -234,7 +237,7 @@ static char *get_Expression_str(Expression *e) {
                 params_size += strlen(arg_str);
                 i++;
             }
-            str = malloc((strlen(fc -> name) + 2 + params_size + 2 * ((arg_num >= 1) ? arg_num - 1 : 0)) * sizeof(char) + 1);
+            str = malloc((strlen (fc -> name) + 2 + params_size + 2 * ((arg_num >= 1) ? arg_num - 1 : 0)) * sizeof(char) + 1);
             
             // combining (with freeing)
             char *p = str;
@@ -332,7 +335,7 @@ void print_program(Program *p) {
     }
 }
 
-void testAssignments() {
+Program *testAssignments() {
     // Creating expected results
     Program *expectedPrograms[testAssignmentsNum];
 
@@ -360,12 +363,12 @@ void testAssignments() {
     Statement *arithm1_stmt3 = create_statement(ASSIGNMENT_STMT, arithm1_assign_a_a_plus_b);
 
     // Link statements
-    Statements *arithm1_statements3 = create_statements(arithm1_stmt3, NULL);
-    Statements *arithm1_statements2 = create_statements(arithm1_stmt2, arithm1_statements3);
-    Statements *arithm1_statements1 = create_statements(arithm1_stmt1, arithm1_statements2);
+    Statements *arithm1_statements1 = create_statements(arithm1_stmt1);
+    Statements *arithm1_statements2 = append_statements(arithm1_statements1, arithm1_stmt2);
+    Statements *arithm1_statements3 = append_statements(arithm1_statements2, arithm1_stmt3);
 
     // Create program
-    expectedPrograms[0] = create_program(arithm1_statements1);
+    expectedPrograms[0] = create_program(arithm1_statements3);
 
     // arithm2.py
 
@@ -389,11 +392,11 @@ void testAssignments() {
     Statement *arithm2_stmt2 = create_statement(ASSIGNMENT_STMT, arithm2_assign_b_a_sub_3);
 
     // Link statements
-    Statements *arithm2_statements2 = create_statements(arithm2_stmt2, NULL);
-    Statements *arithm2_statements1 = create_statements(arithm2_stmt1, arithm2_statements2);
+    Statements *arithm2_statements1 = create_statements(arithm2_stmt1);
+    Statements *arithm2_statements2 = append_statements(arithm2_statements1, arithm2_stmt2);
 
     // Create program
-    expectedPrograms[1] = create_program(arithm2_statements1);
+    expectedPrograms[1] = create_program(arithm2_statements2);
 
     // comparing
     for (int i = 0 ; i < testAssignmentsNum ; i++) {
@@ -415,20 +418,28 @@ void testAssignments() {
             exit(EXIT_FAILURE);
         }
     }
+
+    return program;
 }
 
-void testLoops() {
+Program *testLoops() {
     // Creating expected results
     Program *expectedPrograms[testLoopsNum];
 
 
     // loop1.py
-    // for i in range(3):
+    // for i in range(0, 3):
     //     count = count + 1
 
-    // Create range expression 3
-    Int *loop1_int_3 = create_int(3);
-    Expression *loop1_expr_3 = create_expression(EXPR_INT, loop1_int_3);
+    // Create function call range(0, 3)
+    Int *fun1_int_0 = create_int(0);
+    Int *fun1_int_3 = create_int(3);
+    Expression *fun1_expr_0 = create_expression(EXPR_INT, fun1_int_0);
+    Expression *fun1_expr_3 = create_expression(EXPR_INT, fun1_int_3);
+    Arguments *fun1_args_0 = create_arguments(fun1_expr_0);
+    Arguments *fun1_args_3 = append_arguments(fun1_args_0, fun1_expr_3);
+    FunctionCall *fun1_call_range = create_function_call("range", fun1_args_3);
+    Expression *fun1_expr_call_range = create_expression(EXPR_FUNCTION_CALL, fun1_call_range);
 
     // Create increment count expression
     Name *loop1_name_count2 = create_name("count");
@@ -441,12 +452,12 @@ void testLoops() {
     Statement *loop1_stmt_body = create_statement(ASSIGNMENT_STMT, loop1_assign_count);
 
     // Create for loop statement
-    Statements *loop1_body = create_statements(loop1_stmt_body, NULL);
-    ForStmt *loop1_for_stmt = create_for_stmt("i", loop1_expr_3, loop1_body);
+    Statements *loop1_body = create_statements(loop1_stmt_body);
+    ForStmt *loop1_for_stmt = create_for_stmt("i", fun1_expr_call_range, loop1_body);
     Statement *loop1_stmt = create_statement(FOR_STMT, loop1_for_stmt);
 
     // Link statements
-    Statements *loop1_statements = create_statements(loop1_stmt, NULL);
+    Statements *loop1_statements = create_statements(loop1_stmt);
 
     // Create program
     expectedPrograms[0] = create_program(loop1_statements);
@@ -481,16 +492,16 @@ void testLoops() {
     Statement *loop2_stmt_body = create_statement(ASSIGNMENT_STMT, loop2_assign_count);
 
     // Create while loop statement
-    Statements *loop2_body = create_statements(loop2_stmt_body, NULL);
+    Statements *loop2_body = create_statements(loop2_stmt_body);
     WhileStmt *loop2_while_stmt = create_while_stmt(loop2_expr_count_less_5, loop2_body);
     Statement *loop2_stmt2 = create_statement(WHILE_STMT, loop2_while_stmt);
 
     // Link statements
-    Statements *loop2_statements2 = create_statements(loop2_stmt2, NULL);
-    Statements *loop2_statements1 = create_statements(loop2_stmt1, loop2_statements2);
+    Statements *loop2_statements1 = create_statements(loop2_stmt1);
+    Statements *loop2_statements2 = append_statements(loop2_statements1, loop2_stmt2);
 
     // Create program
-    expectedPrograms[1] = create_program(loop2_statements1);
+    expectedPrograms[1] = create_program(loop2_statements2);
 
     // printing for debugging
     print_program(expectedPrograms[0]);
@@ -518,10 +529,12 @@ void testLoops() {
     for (int i = 0; i < testLoopsNum; i++) {
         free_program(expectedPrograms[i]);
     }
+
+    return program;
 }
 
 
-void testFunDefs() {
+Program *testFunDefs() {
     // Creating expected results
     Program *expectedPrograms[testFunNum];
 
@@ -542,10 +555,10 @@ void testFunDefs() {
     Statement *fun1_stmt_return_add = create_statement(FLOW_STMT, fun1_return_stmt_add);
 
     // Create function add definition
-    Parameters *fun1_param_b = create_parameters(fun1_name_b1, NULL);
-    Parameters *fun1_param_a = create_parameters(fun1_name_a1, fun1_param_b);
-    Statements *fun1_body_add = create_statements(fun1_stmt_return_add, NULL);
-    FunctionDef *fun1_function_add = create_function_def("add", fun1_param_a, fun1_body_add);
+    Parameters *fun1_param_a = create_parameters(fun1_name_a1);
+    Parameters *fun1_param_b = append_parameters(fun1_param_a, fun1_name_b1);
+    Statements *fun1_body_add = create_statements(fun1_stmt_return_add);
+    FunctionDef *fun1_function_add = create_function_def("add", fun1_param_b, fun1_body_add);
     Statement *fun1_stmt_function_add = create_statement(FUNCTION_DEF, fun1_function_add);
 
     // Create initial assignment a = 0
@@ -559,20 +572,20 @@ void testFunDefs() {
     Int *fun1_int_2 = create_int(2);
     Expression *fun1_expr_1 = create_expression(EXPR_INT, fun1_int_1);
     Expression *fun1_expr_2 = create_expression(EXPR_INT, fun1_int_2);
-    Arguments *fun1_args_2 = create_arguments(fun1_expr_2, NULL);
-    Arguments *fun1_args_1 = create_arguments(fun1_expr_1, fun1_args_2);
-    FunctionCall *fun1_call_add = create_function_call("add", fun1_args_1);
+    Arguments *fun1_args_1 = create_arguments(fun1_expr_1);
+    Arguments *fun1_args_2 = append_arguments(fun1_args_1, fun1_expr_2);
+    FunctionCall *fun1_call_add = create_function_call("add", fun1_args_2);
     Expression *fun1_expr_call_add = create_expression(EXPR_FUNCTION_CALL, fun1_call_add);
     AssignmentStmt *fun1_assign_a_add = create_assignment_stmt("a", fun1_expr_call_add);
     Statement *fun1_stmt_assign_a_add = create_statement(ASSIGNMENT_STMT, fun1_assign_a_add);
 
     // Link statements
-    Statements *fun1_statements3 = create_statements(fun1_stmt_assign_a_add, NULL);
-    Statements *fun1_statements2 = create_statements(fun1_stmt_assign_a_0, fun1_statements3);
-    Statements *fun1_statements1 = create_statements(fun1_stmt_function_add, fun1_statements2);
+    Statements *fun1_statements1 = create_statements(fun1_stmt_function_add);
+    Statements *fun1_statements2 = append_statements(fun1_statements1, fun1_stmt_assign_a_0);
+    Statements *fun1_statements3 = append_statements(fun1_statements2, fun1_stmt_assign_a_add);
 
     // Create program
-    expectedPrograms[0] = create_program(fun1_statements1);
+    expectedPrograms[0] = create_program(fun1_statements3);
 
     // fun2.py
     // def sub(a, b):
@@ -591,10 +604,10 @@ void testFunDefs() {
     Statement *fun2_stmt_return_sub = create_statement(FLOW_STMT, fun2_return_stmt_sub);
 
     // Create function sub definition
-    Parameters *fun2_param_b = create_parameters(fun2_name_b1, NULL);
-    Parameters *fun2_param_a = create_parameters(fun2_name_a1, fun2_param_b);
-    Statements *fun2_body_sub = create_statements(fun2_stmt_return_sub, NULL);
-    FunctionDef *fun2_function_sub = create_function_def("sub", fun2_param_a, fun2_body_sub);
+    Parameters *fun2_param_a = create_parameters(fun2_name_a1);
+    Parameters *fun2_param_b = append_parameters(fun2_param_a, fun2_name_b1);
+    Statements *fun2_body_sub = create_statements(fun2_stmt_return_sub);
+    FunctionDef *fun2_function_sub = create_function_def("sub", fun2_param_b, fun2_body_sub);
     Statement *fun2_stmt_function_sub = create_statement(FUNCTION_DEF, fun2_function_sub);
 
     // Create initial assignment a = 0
@@ -608,20 +621,20 @@ void testFunDefs() {
     Expression *fun2_expr_a2 = create_expression(EXPR_NAME, fun2_name_a2);
     Int *fun2_int_3 = create_int(3);
     Expression *fun2_expr_3 = create_expression(EXPR_INT, fun2_int_3);
-    Arguments *fun2_args_3 = create_arguments(fun2_expr_3, NULL);
-    Arguments *fun2_args_a = create_arguments(fun2_expr_a2, fun2_args_3);
-    FunctionCall *fun2_call_sub = create_function_call("sub", fun2_args_a);
+    Arguments *fun2_args_a = create_arguments(fun2_expr_a2);
+    Arguments *fun2_args_3 = append_arguments(fun2_args_a, fun2_expr_3);
+    FunctionCall *fun2_call_sub = create_function_call("sub", fun2_args_3);
     Expression *fun2_expr_call_sub = create_expression(EXPR_FUNCTION_CALL, fun2_call_sub);
     AssignmentStmt *fun2_assign_a_sub = create_assignment_stmt("a", fun2_expr_call_sub);
     Statement *fun2_stmt_assign_a_sub = create_statement(ASSIGNMENT_STMT, fun2_assign_a_sub);
 
     // Link statements
-    Statements *fun2_statements3 = create_statements(fun2_stmt_assign_a_sub, NULL);
-    Statements *fun2_statements2 = create_statements(fun2_stmt_assign_a_0, fun2_statements3);
-    Statements *fun2_statements1 = create_statements(fun2_stmt_function_sub, fun2_statements2);
+    Statements *fun2_statements1 = create_statements(fun2_stmt_function_sub);
+    Statements *fun2_statements2 = append_statements(fun2_statements1, fun2_stmt_assign_a_0);
+    Statements *fun2_statements3 = append_statements(fun2_statements2, fun2_stmt_assign_a_sub);
 
     // Create program
-    expectedPrograms[1] = create_program(fun2_statements1);
+    expectedPrograms[1] = create_program(fun2_statements3);
 
     // Comparing
     for (int i = 0; i < testFunNum; i++) {
@@ -641,14 +654,27 @@ void testFunDefs() {
             exit(EXIT_FAILURE);
         }
     }
+
+    return program;
 }
 
 
 
 
 int main(void) {
-    // testAssignments();
-    // testLoops();
-    testFunDefs();
+    Program *assignProgram = testAssignments();
+    Program *loopsProgram = testLoops();
+
+    IRProgram *assignIR = AST_to_IR(assignProgram);
+    IRProgram *loopsIR = AST_to_IR(loopsProgram);
+
+
+    print_ir_program(assignIR);
+    printf("\n\n");
+
+    print_ir_program(loopsIR);
+    printf("\n\n");
+
+    // testFunDefs();
     return 0;
 }

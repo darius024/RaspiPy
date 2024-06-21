@@ -9,22 +9,22 @@
 BranchConditional getComparison(BinaryOp *binary_op)
 {
     if (strcmp(binary_op->op, "==")) {
-        return EQ;
+        return B_EQ;
     }
     if (strcmp(binary_op->op, "!=")) {
-        return NE;
+        return B_NE;
     }
     if (strcmp(binary_op->op, ">=")) {
-        return GE;
+        return B_GE;
     }
     if (strcmp(binary_op->op, ">")) {
-        return GT;
+        return B_GT;
     }
     if (strcmp(binary_op->op, "<=")) {
-        return LE;
+        return B_LE;
     }
     if (strcmp(binary_op->op, "<")) {
-        return LT;
+        return B_LT;
     }
     exit(EXIT_FAILURE);
 }
@@ -32,22 +32,22 @@ BranchConditional getComparison(BinaryOp *binary_op)
 BranchConditional getNegatedComparison(BinaryOp *binary_op)
 {
     if (strcmp(binary_op->op, "==")) {
-        return NE;
+        return B_NE;
     }
     if (strcmp(binary_op->op, "!=")) {
-        return EQ;
+        return B_EQ;
     }
     if (strcmp(binary_op->op, ">=")) {
-        return LT;
+        return B_LT;
     }
     if (strcmp(binary_op->op, ">")) {
-        return LE;
+        return B_LE;
     }
     if (strcmp(binary_op->op, "<=")) {
-        return GT;
+        return B_GT;
     }
     if (strcmp(binary_op->op, "<")) {
-        return GE;
+        return B_GE;
     }
     exit(EXIT_FAILURE);
 }

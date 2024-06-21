@@ -148,7 +148,8 @@ struct FunctionCall {
 
 // Function prototypes
 Program *create_program(Statements *statements);
-Statements *create_statements(Statement *statement, Statements *next);
+Statements *create_statements(Statement *statement);
+Statements* append_statements(Statements *stmts, Statement *stmt);
 
 AssignmentStmt *create_assignment_stmt(char *name, Expression *expression);
 FlowStmt *create_flow_stmt(char *name, Expression *expression);
@@ -158,8 +159,10 @@ ForStmt *create_for_stmt(char *var, Expression *range, Statements *block);
 FunctionDef *create_function_def(char *name, Parameters *parameters, Statements *body);
 Statement *create_statement(StatementTag tag, void *stmt);
 
-Parameters *create_parameters(Name *parameter, Parameters *next);
-Arguments *create_arguments(Expression *expression, Arguments *next);
+Parameters *create_parameters(Name *parameter);
+Parameters* append_parameters(Parameters *params, Name *name);
+Arguments *create_arguments(Expression *expression);
+Arguments* append_arguments(Arguments *args, Expression *expr);
 
 Name *create_name(char *name);
 Int *create_int(int64_t value);

@@ -13,6 +13,14 @@
 #define MEMORY_SIZE (1024 * 1024 * 2)
 #define STACK_OFFSET 2048
 #define MAX_STACK 1024
+#define MAX_HOTSPOTS 128
+#define MAX_ASSEMBLY_LINE 128
+#define THRESHOLD 16
+
+typedef struct HotMap {
+    int line;
+    uint32_t instruction;
+} HotMap;
 
 typedef struct {
     char name[MAX_NAMES];

@@ -10,12 +10,14 @@
 #include "state.h"
 #include "utils_ir.h"
 
+static void Statements_to_IR(IRProgram *program, Statements *statements, State *state, int *line, int count_update);
 
-static void AssignmentStmt_to_IR(Program *program, AssignmentStmt *assign_stmt, State *state, int *line, int count_update)
+
+static void AssignmentStmt_to_IR(IRProgram *program, AssignmentStmt *assign_stmt, State *state, int *line, int count_update)
 {
     uint8_t expr_reg = evalExpression(program, assign_stmt->expression, state, line, count_update);
     uint8_t reg = (strcmp(assign_stmt->name, "ret") == 0)
-                ? X0 : getRegister(assign_stmt->name, state);
+                ? X0 : getRegister(create_name(assign_stmt->name), state);
     IRInstruction *instr = create_ir_instruction(IR_MOV, reg, expr_reg, NOT_USED, NOT_USED, line);
     instr->dest->type = REG;
     instr->src1->type = REG;
@@ -24,7 +26,7 @@ static void AssignmentStmt_to_IR(Program *program, AssignmentStmt *assign_stmt, 
     // Support only "=" now
 }
 
-static void FlowStmt_to_IR(Program *program, FlowStmt *flow_stmt, State *state, int *line, int count_update)
+static void FlowStmt_to_IR(IRProgram *program, FlowStmt *flow_stmt, State *state, int *line, int count_update)
 {
     if (strcmp(flow_stmt->name, "return") == 0) { // Return statement
         if (flow_stmt->expression != NULL) {
@@ -40,15 +42,16 @@ static void FlowStmt_to_IR(Program *program, FlowStmt *flow_stmt, State *state, 
         // IRInstruction *breakInstruction = create_ir_instruction(IR_B, LOOP_COND, NOT_USED, NOT_USED, NOT_USED, line);
         // insertInstruction(program, breakInstruction);
     }
-    return program;
 }
 
 
-static void ForStmt_to_IR(Program *program, ForStmt *for_stmt, State *state, int *line, int count_update)
+static void ForStmt_to_IR(IRProgram *program, ForStmt *for_stmt, State *state, int *line, int count_update)
 {
     Arguments *args = for_stmt->range->function_call->args;
     assert(args != NULL); // low_bound
     assert(args->next != NULL); // upp_bound
+    int low_bound = evalExpression(program, args->arg, state, line, count_update);
+    int upp_bound = evalExpression(program, args->next->arg, state, line, count_update);
     // function_call is of form:    range(low_bound, upp_bound)
 
     // Assignment
@@ -57,8 +60,8 @@ static void ForStmt_to_IR(Program *program, ForStmt *for_stmt, State *state, int
 
     // Condition check
     int line_to_return = *line;
-    uint8_t reg = getRegister(assign->name, state);
-    IRInstruction *condition = create_ir_instruction(IR_CMP, reg, args->next->arg, NOT_USED, NOT_USED, line);
+    uint8_t reg = getRegister(create_name(assign->name), state);
+    IRInstruction *condition = create_ir_instruction(IR_CMP, reg, upp_bound, NOT_USED, NOT_USED, line);
     condition->dest->type = REG;
     condition->src1->type = IMM;
     insertInstruction(program, condition, count_update);
@@ -67,10 +70,10 @@ static void ForStmt_to_IR(Program *program, ForStmt *for_stmt, State *state, int
     insertInstruction(program, condition2, count_update);
 
     // Convert block statements to IR
-    Statements_to_IR(program, for_stmt->block, state, line, count_update + args->next->arg - args->arg);
+    Statements_to_IR(program, for_stmt->block, state, line, count_update + upp_bound - low_bound);
 
     // Update counter
-    int r = getRegister(assign->name, state);
+    int r = getRegister(create_name(assign->name), state);
     IRInstruction *update_counter = create_ir_instruction(IR_ADD, r, r, 1, NOT_USED, line);
     update_counter->dest->type = REG;
     update_counter->src1->type = REG;
@@ -87,7 +90,7 @@ static void ForStmt_to_IR(Program *program, ForStmt *for_stmt, State *state, int
     condition2->src1->type = LABEL;
 }
 
-static void WhileStmt_to_IR(Program *program, WhileStmt *while_stmt, State *state, int *line, int count_update)
+static void WhileStmt_to_IR(IRProgram *program, WhileStmt *while_stmt, State *state, int *line, int count_update)
 {
     assert(while_stmt->condition->tag == EXPR_BINARY_OP);
 
@@ -97,11 +100,11 @@ static void WhileStmt_to_IR(Program *program, WhileStmt *while_stmt, State *stat
     BranchConditional op = getComparison(binary_op);
     uint8_t left_op = evalExpression(program, binary_op->left, state, line, count_update);
     uint8_t right_op = evalExpression(program, binary_op->right, state, line, count_update);
-    IRInstruction *condition = create_ir_instruction(IR_CMP, left_op, right_op, NOT_USED, NOT_USED, *line);
+    IRInstruction *condition = create_ir_instruction(IR_CMP, left_op, right_op, NOT_USED, NOT_USED, line);
     condition->dest->type = REG;
     condition->src1->type = REG;
     insertInstruction(program, condition, count_update);
-    IRInstruction *condition2 = create_ir_instruction(IR_BCOND, op, NOT_USED, NOT_USED, NOT_USED, *line);
+    IRInstruction *condition2 = create_ir_instruction(IR_BCOND, op, NOT_USED, NOT_USED, NOT_USED, line);
     condition2->dest->type = LABEL;
     insertInstruction(program, condition2, count_update);
 
@@ -118,18 +121,18 @@ static void WhileStmt_to_IR(Program *program, WhileStmt *while_stmt, State *stat
     condition2->src1->type = LABEL;
 }
 
-static void IfStmt_to_IR(Program *program, IfStmt *if_stmt, State *state, int *line, int count_update)
+static void IfStmt_to_IR(IRProgram *program, IfStmt *if_stmt, State *state, int *line, int count_update)
 {
     // Condition check
     BinaryOp *binary_op = if_stmt->condition->binary_op;
     BranchConditional op = getNegatedComparison(binary_op);
     int left_op = evalExpression(program, binary_op->left, state, line, count_update);
     int right_op = evalExpression(program, binary_op->right, state, line, count_update);
-    IRInstruction *condition = create_ir_instruction(IR_CMP, left_op, right_op, NOT_USED, NOT_USED, *line);
+    IRInstruction *condition = create_ir_instruction(IR_CMP, left_op, right_op, NOT_USED, NOT_USED, line);
     condition->dest->type = REG;
     condition->src1->type = REG;
     insertInstruction(program, condition, count_update);
-    IRInstruction *condition2 = create_ir_instruction(IR_BCOND, op, NOT_USED, NOT_USED, NOT_USED, *line);
+    IRInstruction *condition2 = create_ir_instruction(IR_BCOND, op, NOT_USED, NOT_USED, NOT_USED, line);
     condition2->dest->type = LABEL;
     insertInstruction(program, condition2, count_update);
 
@@ -137,11 +140,11 @@ static void IfStmt_to_IR(Program *program, IfStmt *if_stmt, State *state, int *l
     Statements_to_IR(program, if_stmt->then_block, state, line, count_update);
 
     // Unconditional branch past the else block
-    IRInstruction *branch_uncond = create_ir_instruction(IR_B, NOT_USED, NOT_USED, NOT_USED, NOT_USED, *line);
+    IRInstruction *branch_uncond = create_ir_instruction(IR_B, NOT_USED, NOT_USED, NOT_USED, NOT_USED, line);
     insertInstruction(program, branch_uncond, count_update);
 
     // Update branch condition location for the else block
-    condition2->src1 = *line;
+    condition2->src1->reg = *line;
 
     // Else block
     Statements_to_IR(program, if_stmt->else_block, state, line, count_update);
@@ -151,7 +154,7 @@ static void IfStmt_to_IR(Program *program, IfStmt *if_stmt, State *state, int *l
     branch_uncond->dest->type = LABEL;
 }
 
-static void FunctionDef_to_IR(Program *program, FunctionDef *function_def, State *state, int *line, int count_update)
+static void FunctionDef_to_IR(IRProgram *program, FunctionDef *function_def, State *state, int *line, int count_update)
 {
     // Create instructions for function parameters
     Parameters *param = function_def->parameters;
@@ -167,42 +170,48 @@ static void FunctionDef_to_IR(Program *program, FunctionDef *function_def, State
     // Returning is handle by the return statement
 }
 
-
-static void Statements_to_IR(Program *program, Statements *statements, State *state, int *line, int count_update)
+static void Statements_to_IR(IRProgram *program, Statements *statements, State *state, int *line, int count_update)
 {
     while(statements->next != NULL) {
         switch(statements->statement->tag) {
-            case ASSIGNMENT_STMT:
-                AssignmentStmt *stmt = statements->statement->assignment_stmt;
-                AssignmentStmt_to_IR(program, stmt, state, line, count_update);
+            case ASSIGNMENT_STMT: {
+                AssignmentStmt *assignment_stmt = statements->statement->assignment_stmt;
+                AssignmentStmt_to_IR(program, assignment_stmt, state, line, count_update);
                 break;
-            case FLOW_STMT:
-                FlowStmt *stmt = statements->statement->flow_stmt;
-                FlowStmt_to_IR(program, stmt, state, line, count_update);
+            }
+            case FLOW_STMT: {
+                FlowStmt *flow_stmt = statements->statement->flow_stmt;
+                FlowStmt_to_IR(program, flow_stmt, state, line, count_update);
                 break;
-            case FOR_STMT:
-                ForStmt *stmt = statements->statement->for_stmt;
-                ForStmt_to_IR(program, stmt, state, line, count_update);
+            }
+            case FOR_STMT: {
+                ForStmt *for_stmt = statements->statement->for_stmt;
+                ForStmt_to_IR(program, for_stmt, state, line, count_update);
                 break;
-            case WHILE_STMT:
-                WhileStmt *stmt = statements->statement->while_stmt;
-                WhileStmt_to_IR(program, stmt, state, line, count_update);
+            }
+            case WHILE_STMT: {
+                WhileStmt *while_stmt = statements->statement->while_stmt;
+                WhileStmt_to_IR(program, while_stmt, state, line, count_update);
                 break;
-            case IF_STMT:
-                IfStmt *stmt = statements->statement->if_stmt;
-                IfStmt_to_IR(program, stmt, state, line, count_update);
+            }
+            case IF_STMT: {
+                IfStmt *if_stmt = statements->statement->if_stmt;
+                IfStmt_to_IR(program, if_stmt, state, line, count_update);
                 break;
-            case FUNCTION_DEF:
-                FunctionDef *stmt = statements->statement->function_def;
+            }
+            case FUNCTION_DEF: {
+                FunctionDef *function_definition = statements->statement->function_def;
                 State *callee_state = create_state();
-                FunctionDef_to_IR(program, stmt, callee_state, line, count_update);
+                FunctionDef_to_IR(program, function_definition, callee_state, line, count_update);
                 break;
+            }
         }
         statements = statements->next;
     }
 }
 
-IRProgram *AST_to_IR(Program *prog, State *state)
+
+IRProgram *AST_to_IR(Program *prog)
 {
     // Create an IR program
     IRProgram *program = create_ir_program();

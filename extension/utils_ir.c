@@ -72,6 +72,7 @@ uint8_t getRegisterState(Name *name, State *state)
 uint8_t getNextFreeRegister() {
     for (uint8_t i = 0; i < 30; i++) {
         if (registers[i] == NOT_USED) {
+            registers[i] = 100;
             return i;
         }
     }

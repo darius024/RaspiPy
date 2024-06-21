@@ -10,11 +10,11 @@ LFLAGS = -l
 .PHONY: all clean
 
 # Object files
-TEST_OBJS = testASToptimiser.o ast.o ir.o optimise_ir.o utils_ir.o ast_to_ir.o ../src/io.o testAST.o testIR.o eval.o
+TEST_OBJS = testASToptimiser.o ast.o ir.o optimise_ir.o utils_ir.o ast_to_ir.o ../src/io.o testAST.o testIR.o eval.o lexer.o parser.o
 PARSER_OBJS = ast.o parser.o lexer.o ../src/io.o testAST.o testIR.o ast_to_ir.o utils_ir.o eval.o ir.o
 
 # Target executables
-TARGET = test parse
+TARGET = test parse aot
 
 # Dependency files generated
 DEP = $(TEST_OBJS:.o=.d) $(PARSER_OBJS:.o=.d)
@@ -44,5 +44,5 @@ parser.c parser.h: parser.y
 
 # Clean rule to remove generated files
 clean:
-	$(RM) $(TEST_OBJS) $(PARSER_OBJS) $(TARGET) $(DEP) $(PARSER_GENERATED)
+	$(RM) $(TEST_OBJS) $(PARSER_OBJS) $(AOT_OBJS) $(TARGET) $(DEP) $(PARSER_GENERATED)
 	

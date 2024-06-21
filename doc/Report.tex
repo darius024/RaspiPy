@@ -1,21 +1,108 @@
-\documentclass[11pt]{article}
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage[scale=0.82, lining]{FiraMono}
 
-\usepackage{fullpage}
+\title{C Final Report}
+\author{Darius Aron, Sajesh Shakya, Orca Vanichjakvong, Yechan Yun}
 
 \begin{document}
-
-\title{Our Extension...}
-\author{TODO}
-
 \maketitle
 
-\section{Introduction}
+\section{Assembler Structure}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor
-incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
-nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
-fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
-culpa qui officia deserunt mollit anim id est laborum.
+Our assembler was designed closely to the emulator to maximize code reuse. Initially, our first working draft did not use the intermediate representation from the emulator. However, we decided to construct entirely new disassemblers from scratch upon realizing that it would lead to a better design. Our updated goal was to make the two parts symmetric and proportional, meaning that aside from context-specific features, the emulator and assembler share the same high-level design. We successfully achieved this objective by aligning their pipeline stages and reusing the data structures from the emulator.
+
+In our design, the fetch stage involves decomposing the instruction into its name and tokens, which are stored in a new structure containing all the information about the assembly line: address, mnemonic, tokens, and a buffer where the line is read. This structure is allocated into memory at the beginning and overwritten for each assembly instruction In the assembler, the decode and execute stages of the emulator are effectively swapped. This means that in the assembler, we first execute and then decode.
+
+We consider executing as disassembling because instead of taking the instruction structure and applying changes to the program state, it takes the instruction state (the assembly line) and constructs the instruction structure. We then reuse the same decode module from the emulator to build the instruction out of its corresponding structure. This is done by passing a function pointer that reverses the process: it fills out the instruction sequentially from the structure's fields instead of getting bits from the instruction and filling in the structure.
+
+To traverse the assembly code, we initially used a two-pass approach but then decided that a one-pass approach would be more efficient, eliminating the need to reread the input file. Apart from the symbol table, which gets updated each time a new label is encountered, we created a map to store all the undefined labels not yet found in the symbol table. When we encounter an instruction that references such a label, we store the instruction address and partial binary representation, revising it at the end. Although our initial approach was to output binary instructions directly, our mentor suggested considering the memory-time trade-off. Consequently, we switched to storing instructions in an array and updating them accordingly. This decision acknowledges that while IO operations are time-consuming, they are a greater inconvenience than occupying memory, which is plentiful in modern devices.
+
+With the tables in place, we decided to create our own vector module to enhance efficiency when working with them. For the finishing touches on our first two parts, we aimed for modularity, clarity, and uniformity. This involved implementing an improved design of all the modules, carefully considering module inheritance and includes, and refining and standardizing comments. After updating the Makefile and conducting a final review by each team member, we delivered the parts to the master branch.
+
+ 
+\section{Implementation of Part III}
+
+Having the assembler done, we proceeded to work on Part III. After reading the specification, we chose pin 2 as our output pin and a nearby ground pin accordingly. Our first step was designing the circuit by connecting the anode (long leg) of the LED to the voltage pin and the cathode (short leg) to a resistor, which further gets connected to the ground pin on the breadboard. This design ensures a safe circuit.
+
+Next, we applied the specification to write assembly code to set the pin as output. We tested setting it high or low by providing the correct hexadecimal value to make the correct bit high. After correctly writing our constants as directives at the end of our assembly file, we designed the blinking algorithm. This algorithm starts by setting pin 2 high, waiting, setting pin 2 low, waiting, and repeating this process indefinitely.
+
+The waiting process is implemented by running a very large loop that does nothing, but keeps the processor busy, preventing the LED from changing state. After trying different values of the wait time, we concluded that \texttt{0xfffff} was optimal. Since the constants were quite small, we used 32-bit registers for them, while storing the addresses in 64-bit registers.
+
+We ensured clarity in the assembly code by using many labels with informative names, which also served as comments. The directives block is stored under the halt instruction, which delimits the instruction and data blocks accordingly. Finally, after further testing, we assembled the assembly file into \texttt{kernel8.img}, which we uploaded to the Raspberry Pi along with the other two necessary files. This approach successfully implemented a blinking LED.
+
+
+\section{Extension}
+
+\subsection{Description}
+
+When choosing an extension, the sole goal that each of us had in mind at the beginning was to make something that would effectively utilize what we had developed in the first three parts. Guided by this objective and our mentor's suggestions, we decided to implement an optimized ahead-of-time compiler for a subset of Python. We called this new language RaspiPy, intending to tailor it for Raspberry Pi usage and ensure it had significant practical capabilities.
+
+This language supports all common Python features, like function definitions, loops, decisions, assignments. However, it does not support importing libraries or some other advanced operations. Beyond the Python-specific features, we integrated certain functionalities to interface with the GPIOs of the Raspberry P. For instance, a variable name like \texttt{GPIO\_0} corresponds to the respective pin, and writing \texttt{GPIO\_0 = HIGH} easily sets the pin state, without requiring additional libraries or specialized knowledge.
+
+A practical example of RaspiPy's utility is Part III of our project, where just a few lines of code can cause an LED to blink. During the compilation process, we handle all address-specific considerations in the generated binary file, making it straightforward to use in microcontroller projects. We chose Python as our source language because it is convenient for writing short, simple scripts, which was an essential consideration for our language design.
+
+\subsection{Implementation}
+
+To build a robust optimized compiler, each of us began by independently researching the topic. Afterwards, we gathered to assign tasks and establish a general pattern for our code. The compiler's workflow includes parsing the input, producing an abstract syntax tree (AST), transforming it into an intermediate representation (IR), applying optimizations to improve the final output, and transforming the IR to the specific output requested. This can be either assembly, or it can be refined further and transformed to a binary file.
+
+We decided not to use a generic tree structure but instead different structures that precisely define what they are allowed to store, making the AST traversal easier. The IR was designed to enable direct conversion to binary by constructing it efficiently for traversal. Thus, we defined the \texttt{IRInstruction} structure to closely resemble a line of assembly, and the \texttt{IRProgram} as a linked list of these instructions. This design allows the program to be transformed linearly into the desired output.
+
+Darius worked on defining the tokens and rules allowed in the language, setting up the lexer and grammar for the parser. His final task was to construct the abstract syntax tree. Sajesh transformed the \texttt{AST} into the intermediary representation by constructing a function for each AST data type and handling it appropriately. He also implemented constant folding and propagation optimizations during conversion. Orca handled the IR to binary conversion by adapting the assembler specification rules to RaspiPy code and modifying the IR enumeration types accordingly. Meanwhile, Yechan designed the test suite for the entire extension, ensuring that our parts interleaved correctly and checking for errors at each step.
+
+The first challenge we encountered was defining the grammar for the language. Initially, we tried using the ANTLR tool, which seemed promising due to its modern features. However, it introduced problems since it did not provide C integration. Although we managed to set up the grammar to run in Python, we abandoned this approach because it required building the AST in Python, which was not compatible with our C-based extension. Consequently, we shifted to using the lex and yacc tools provided in the C Tools lectures and adapted the grammar to work with yacc. This obstacle, though time-consuming, gave us valuable insights into language grammar considerations.
+
+Another significant issue emerged when designing the structure of our register assignment and overall binary code structure. We decided to adhere to the ARM specification and implement the same rules. Hence, the first register is reserved as the return register, while the first eight are reserved for parameter passing in function calls.
+
+\subsection{Testing}
+
+Given the significant complexity difference between the assembler and the compiler, we anticipated that the binary produced by the compiler would be much larger than the one in the assembly tests provided, even for very simple instructions. However, we were determined to reuse these tests. Our approach involved transforming assembly files into our language, compiling these files to produce either binary code or assembly, and then emulating both our binary file and the one provided in the test suite. When reviewing the state, we compared the registers' values to ensure correctness. Although this provided a machine code independent approach, the compiler still assigns registers following some strict rules, so we mainly focused on checking the registers storing final results.
+
+This was just for the overall testing of the program. We also conducted testing for individual parts of the project. For example, \texttt{AST} structure checkers helped us to correct our grammar and tree-building rules, while optimization checkers provided insights into the program's efficiency improvements. We also created local tests for most utility functions to ensure their correctness.
+
+We consider our testing to be quite thorough. While we cannot test every possible combination of instructions, we tested every type of statement and expression supported by the grammar, along with various combinations of the two. Function definitions and types were also included in our test suite, which we verified by debugging the code.
+
+\section{Group Reflection}
+
+From the beginning, our group dynamics led to strong progress. Each of us had ease in communicating, which enabled us to clearly assign tasks and adopt a pair-programming approach, with pairs working on different branches. We set deadlines and milestones for each task, aiming to complete the first three parts in the two weeks, leaving ample time for the extension. This organized approach minimized conflicts in the repository as everyone understood which files to work on and when.
+
+Our group had regular meetings, especially before the meetings with our mentor, to ensure the best code was pushed to the repository. Most meetings occurred in person in the labs from early afternoon to late evening. However, online meetings at night were another effective alternative. Daily updates were common, even if the code was not pushed to the repository as frequently.
+
+Programming as a group was occasionally challenging due to differing styles in naming variables and structuring code. However, we gradually adopted a common format, achieving code homogeneity. Programming together such a large project was certainly a new and eye-opening experience, presenting a variety of situations to explore. Working with others was reassuring, as there was always someone to discuss ideas with and provide help. If someone finished their work early, they would assist others, ensuring balanced commit pacing and workload.
+
+Overall, our task assignments were largely successful, allowing us to complete substantial work in parallel and later refine it. However, our ambitious extension goals made the final deadline tight. We finished the code and tested its basic functionalities but had to make trade-offs regarding code efficiency. For example, the test suite files are quite large and not broken down into modules.
+
+In future projects together, we plan to maintain the same frequency of meetings. One change that we would make would be better task assignments based on individual strengths and weaknesses, as we noticed varying ideas and comfort with different aspects of the project. The task quality would have been better if we knew about each other’s strengths and weaknesses beforehand. Admittedly, there were moments when what was agreed needed to be changed because someone came up with a better idea. This usually affected multiple parts of the program, but we were often able to mitigate the scope of the resulting changes.
+
+The meetings with our mentor played a crucial role in our progress as well. After completing the first three parts quickly and passing all tests, he motivated us to perfect the design of our project, providing useful online resources. Therefore, his guidance and suggestions led to a modular and well-formed project. We greatly appreciated the extensive time he spent with us during each meeting, lasting about an hour each, which was much more than he was expected to provide.
+
+Overall, we consider our project an overachievement. While one might expect team members to contribute evenly, meet regularly, and adhere to deadlines, this does not always happen. In our case, this dynamic proved beneficial, as other members often introduced better implementation ideas, enhancing the project.
+
+\section{Individual Reflection}
+
+\subsection{Darius}
+
+I was very optimistic about the project from the beginning and eager to make the most of it. I began working on it the second day, after tasks were assigned. My dedication to learning motivated me to complete my tasks quickly, ensuring that code was consistent, readable and deliverable, even in my first drafts. I feel that I grasped the architectural implications quite quickly, which allowed me to make swift progress with all parts of the project.
+
+During these weeks, I thoroughly enjoyed helping with my colleagues' tasks, which also deepened my understanding of the project and enabled me to contribute to improvements. I particularly enjoyed conceptualizing the structure of the project and reasoning about how to approach each aspect of it, whether significant or minor. I always felt appreciated for my contributions.
+
+\subsection{Sajesh}
+
+My primary focus in the project was on the assembler, Raspberry Pi program, and extension. Initially, I needed some time to acclimate to the group's pace, but once I did, I found myself effectively contributing to these critical areas. Working on the assembler involved creating a framework for converting assembly code into machine-readable instructions, while my tasks on the Raspberry Pi required interfacing with hardware components to ensure seamless software integration. Developing the extension was particularly rewarding as it challenged me to think creatively and solve technical hurdles, adding valuable functionality to our project.
+
+Reflecting on the team dynamics, I appreciated the collaborative spirit and commitment each member brought. Although my I wasn't able to contribute much to the emulator, the supportive environment enabled me to expand my role and impact. The shared knowledge and open communication fostered a productive working atmosphere. Looking ahead, I aim to leverage these experiences in future projects, valuing the importance of adaptability and teamwork. I'm grateful for the opportunity to work with such a dedicated team and look forward to continued learning and meaningful contributions.
+
+\subsection{Orca}
+
+I felt that I contributed what I could to the group, though at times this turned out to be different than what I was expecting. I wrote some parts of the emulator and extension, which were my primary contributions, but a lot of the work was also in editing and refactoring existing code, such as creating the \texttt{Instruction} structure that could be reused in the emulator and assembler, then changing the rest of the code to fit it. I initially thought that most of the difficulty would be in problem-solving to write the implementations, but actually, reading and trying to understand code written by others turned out to be more effort than I assumed, especially in a project of this scale.
+
+Regarding our group dynamics, I was pleasantly surprised. Though we weren’t perfect, and the work that each person did wasn’t what we were anticipating at the start, everyone’s attitude that we would do the best that we could meant that for the most part, we co-worked harmoniously and remained on the same page. I think that we cultivated a healthy and productive group dynamic; in future projects I would like to keep much of the same approach. Lastly, I’d like to express my thanks and gratitude to my teammates, who made this project as enjoyable as it could have been by being here for and supporting each other.
+
+\subsection{Yechan}
+
+In the project, I took on a significant role by working extensively on the assembler and the system extensions. The challenge of developing a robust assembler, which translates assembly language into machine code, was a key part of my responsibilities. This role demanded a precise understanding of our system's intricacies and required me to ensure the assembler was both efficient and reliable. My work on the extension involved designing and implementing additional functionalities that expanded the capabilities of our system. This task was particularly satisfying as it required creativity and technical finesse to integrate new features seamlessly into our existing framework.
+
+Reflecting on our team experience, I was impressed by the synergy and dedication displayed by everyone involved. The collaborative atmosphere and open lines of communication allowed us to navigate complex challenges effectively and support one another throughout the process. While my focus was on the technical aspects of the assembler and extension, the interactions with my teammates enriched my understanding and appreciation of the project's broader scope. This project has reinforced the value of teamwork and adaptability, and I am grateful for the opportunity to contribute to such a dynamic and driven team. Moving forward, I am excited to apply these experiences to future projects, knowing the importance of both technical excellence and strong team collaboration.
 
 \end{document}

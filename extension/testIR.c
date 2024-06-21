@@ -18,7 +18,7 @@ const char* token_type_to_string(TokenType type) {
 
 void print_token(Token *token) {
     if (token) {
-        printf("Token(reg=%u, type=%s)", token->reg, token_type_to_string(token->type));
+        printf("Tok(%u, %s)", token->reg, token_type_to_string(token->type));
     } else {
         printf("NULL");
     }
@@ -51,15 +51,13 @@ const char* ir_type_to_string(IRType type) {
 
 void print_ir_instruction(IRInstruction *instr) {
     if (instr) {
-        printf("IRInstruction(type=%s, dest=", ir_type_to_string(instr->type));
-        print_token(instr->dest);
-        printf(", src1=");
-        print_token(instr->src1);
-        printf(", src2=");
-        print_token(instr->src2);
-        printf(", src3=");
-        print_token(instr->src3);
-        printf(", line=%d, count=%d)\n", instr->line, instr->count);
+        char assembly_line[MAX_ASSEMBLY_LINE] = "";
+        putMnemonic(assembly_line, instr->type);
+        if (instr->dest != NULL) putRegOrImm(assembly_line, instr->dest);
+        if (instr->src1 != NULL) putRegOrImm(assembly_line, instr->src1);
+        if (instr->src2 != NULL) putRegOrImm(assembly_line, instr->src2);
+        if (instr->src3 != NULL) putRegOrImm(assembly_line, instr->src3);
+        printf("%s\n", assembly_line);
     } else {
         printf("NULL\n");
     }

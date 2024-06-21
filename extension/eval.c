@@ -25,7 +25,7 @@ uint8_t evalExpression(IRProgram *program, Expression *expression, State *state,
         }
         case EXPR_INT: {
             uint8_t reg = getNextFreeRegister();
-            IRInstruction *instr = create_ir_instruction(IR_MOV, reg, expression->int_value->value, NOT_USED, NOT_USED, line);
+            IRInstruction *instr = create_ir_instruction(IR_MOVZ, reg, expression->int_value->value, NOT_USED, NOT_USED, line);
             instr->dest->type = REG;
             instr->src1->type = IMM;
             insertInstruction(program, instr, count_update);

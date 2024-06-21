@@ -7,6 +7,8 @@
 #include "ir.h"
 #include "utils_ir.h"
 #include "ast.h"
+#include "ast_to_ir.h"
+#include "../src/io.h"
 #include "parser.h"
 #include "lexer.h"
 
@@ -41,13 +43,6 @@ static FILE *loadInputFile(const char *filename, const char *extension, const ch
 
 static FILE *openOutputFile(const char *filename, const char *extension, const char *writeMode)
 {
-    if (extension != NULL) { // Check if a specific extension is required
-        const char *fileType = strrchr(filename, '.');
-        if (strcmp(filename,  stdout) != 0 && (!fileType || strcmp(fileType + 1, extension) != 0)) {
-            fprintf(stderr, "This is not a valid .%s file: %s\n", extension, filename);
-            exit(EXIT_FAILURE);
-        }
-    }
     
     FILE *file;
     file = (!strcmp(filename, stdout)) ? stdout : fopen(filename, writeMode);
@@ -59,12 +54,12 @@ static FILE *openOutputFile(const char *filename, const char *extension, const c
 }
 
 // Error Checking
-static void checkError(bool error)
-{
-    if (error) {
-        exit(EXIT_FAILURE);
-    }
-}
+// static void checkError(bool error)
+// {
+//     if (error) {
+//         exit(EXIT_FAILURE);
+//     }
+// }
 
 static void checkErrorOutput(FILE *file)
 {
@@ -265,9 +260,9 @@ int main(int argc, char const *argv[])
     } else {
         EXIT_PROGRAM("Provide at least an input file.");
     }
-    const char r = 'r';
+    const char r = "r";
 
-    FILE *parsing_file = loadInputFile(inputFile, NULL, &read);
+    FILE *parsing_file = loadInputFile(inputFile, NULL, "r");
 
     yyin = parsing_file;
 
@@ -289,7 +284,7 @@ int main(int argc, char const *argv[])
     //open output file to
     // Write the assembl instructions
     FILE *output = openOutputFile(outputFile, NULL, "w");
-    writeBinaryInstr(output);
+    // writeBinaryInstr(output);
 
     //iterate through the program and use the aot
     IRInstruction *cur_instr = ir_program->head;

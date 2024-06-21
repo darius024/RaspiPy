@@ -9,6 +9,8 @@
 #include "ir.h"
 #include "utils_ir.h"
 
+extern int registers[NUM_REGISTERS];
+
 static void Statements_to_IR(IRProgram *program, Statements *statements, State *state, int *line, int count_update);
 
 
@@ -171,7 +173,7 @@ static void FunctionDef_to_IR(IRProgram *program, FunctionDef *function_def, Sta
 
 static void Statements_to_IR(IRProgram *program, Statements *statements, State *state, int *line, int count_update)
 {
-    while(statements->next != NULL) {
+    while(statements != NULL) {
         switch(statements->statement->tag) {
             case ASSIGNMENT_STMT: {
                 AssignmentStmt *assignment_stmt = statements->statement->assignment_stmt;
@@ -216,9 +218,15 @@ IRProgram *AST_to_IR(Program *prog)
     IRProgram *program = create_ir_program();
     State *state = create_state();
 
+    for(int i = 0; i < NUM_REGISTERS; i++) {
+        registers[i] = NOT_USED;
+    }
+
     // Set up SP
     int line = 0;
     IRInstruction *set_sp = create_ir_instruction(IR_MOVZ, SP, state->stack_size, NOT_USED, NOT_USED, &line);
+    set_sp->dest->type = REG;
+    set_sp->src1->type = IMM;
     insertInstruction(program, set_sp, 1);
 
     Statements_to_IR(program, prog->statements, state, &line, 1);

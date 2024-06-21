@@ -34,6 +34,7 @@ Token *create_token(uint8_t value)
 {
     Token *token = malloc(sizeof(Token));
     assert(token != NULL);
+    token->reg = value;
     return token;
 }
 
@@ -42,10 +43,10 @@ IRInstruction *create_ir_instruction(IRType type, int dest, int src1, int src2, 
     IRInstruction* instruction = malloc(sizeof(IRInstruction));
     assert(instruction != NULL);
     instruction->type = type;
-    instruction->dest = create_token(dest);
-    instruction->src1 = create_token(src1);
-    instruction->src2 = create_token(src2);
-    instruction->src3 = create_token(src3);
+    instruction->dest = (dest != NOT_USED) ? create_token(dest) : NULL;
+    instruction->src1 = (src1 != NOT_USED) ? create_token(src1) : NULL;
+    instruction->src2 = (src2 != NOT_USED) ? create_token(src2) : NULL;
+    instruction->src3 = (src3 != NOT_USED) ? create_token(src3) : NULL;
     instruction->line = (*line)++;
     instruction->count = 0;
     instruction->next = NULL;
@@ -68,7 +69,7 @@ State *create_state(void)
 
     state->map_size = 0;
     state->funcs_size = 0;
-    state->stack_size = rand() % (MEMORY_SIZE_2 - STACK_OFFSET) + STACK_OFFSET;
+    state->stack_size = (rand() % (MEMORY_SIZE_2 - STACK_OFFSET)) / 64 * 64 + STACK_OFFSET;
     state->hotspots_size = 0;
 
     return state;
@@ -84,31 +85,47 @@ void free_state(State *state)
 
 // Functions to work with hotspots
 
-static void putMnemonic(char *assembly_line, IRType type)
+void putMnemonic(char *assembly_line, IRType type)
 {
     char mnemonic[MAX_TOKEN_LENGTH];
-    strcpy(mnemonic, GENERATE_STRING(type) + 3);
-    for (int i = 0; i < strlen(mnemonic); i++) {
-        mnemonic[i] = tolower(mnemonic[i]);
+    switch(type) {
+        case IR_ADD: strcpy(mnemonic, "add"); break;
+        case IR_SUB: strcpy(mnemonic, "sub"); break;
+        case IR_CMP: strcpy(mnemonic, "cmp"); break;
+        case IR_NEG: strcpy(mnemonic, "neg"); break;
+        case IR_AND: strcpy(mnemonic, "and"); break;
+        case IR_EOR: strcpy(mnemonic, "eor"); break;
+        case IR_ORR: strcpy(mnemonic, "orr"); break;
+        case IR_TST: strcpy(mnemonic, "tst"); break;
+        case IR_MOV: strcpy(mnemonic, "mov"); break;
+        case IR_MOVZ: strcpy(mnemonic, "movz"); break;
+        case IR_MVN: strcpy(mnemonic, "mvn"); break;
+        case IR_MADD: strcpy(mnemonic, "madd"); break;
+        case IR_MUL: strcpy(mnemonic, "mul"); break;
+        case IR_B: strcpy(mnemonic, "b"); break;
+        case IR_BR: strcpy(mnemonic, "br"); break;
+        case IR_BCOND: strcpy(mnemonic, "b.cond"); break;
+        case IR_LDR: strcpy(mnemonic, "ldr"); break;
+        case IR_STR: strcpy(mnemonic, "str"); break;
+        case IR_DIR: strcpy(mnemonic, "dir"); break;
+        default: strcpy(mnemonic, "unknown"); break;
     }
     strcat(assembly_line, mnemonic);
 }
 
-static void putReg(char *assembly_line, int src) {
+void putReg(char *assembly_line, int src) {
     char reg[MAX_TOKEN_LENGTH];
     sprintf(reg, "w%d", src);
-    strcat(assembly_line, " ");
     strcat(assembly_line, reg);
 }
 
-static void putImm(char *assembly_line, int src) {
+void putImm(char *assembly_line, int src) {
     char imm[MAX_TOKEN_LENGTH];
     sprintf(imm, "#%d", src);
-    strcat(assembly_line, " ");
     strcat(assembly_line, imm);
 }
 
-static void putRegOrImm(char *assembly_line, Token *token)
+void putRegOrImm(char *assembly_line, Token *token)
 {
      if (token->reg != NOT_USED) {
         strcat(assembly_line, " ");

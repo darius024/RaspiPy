@@ -105,6 +105,8 @@ int get_top_indent() {
 
 "#"[^\r\n]*   { /* Skip comments */ }
 
+[ \r\t\n]+      { /* ignore whitespace */ }
+
 \n {
     int i;
     int new_indent = 0;
@@ -122,8 +124,6 @@ int get_top_indent() {
         }
     }
 }
-
-[ \r\t]+      { /* ignore whitespace */ }
 
 .             { return yytext[0]; } // Default rule to return single characters
 

@@ -142,4 +142,7 @@ void addHotSpot(State *state, uint32_t instrBin, int line);
 extern State *create_state(void);
 extern void free_state(State *state);
 
+void putMnemonic(char *assembly_line, IRType type);
+void putRegOrImm(char *assembly_line, Token *token);
+
 #endif

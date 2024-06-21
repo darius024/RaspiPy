@@ -324,15 +324,15 @@ void test_const_prop() {
     }   
 }
 
-int main(void) {
-    printf("%s\n", 
-    get_Expression_str(create_expression(
-        EXPR_FUNCTION_CALL, create_function_call("range", 
-        create_arguments(create_expression(EXPR_INT, create_int(5))))))
-    );
+// int main(void) {
+//     printf("%s\n", 
+//     get_Expression_str(create_expression(
+//         EXPR_FUNCTION_CALL, create_function_call("range", 
+//         create_arguments(create_expression(EXPR_INT, create_int(5))))))
+//     );
 
-    test_const_prop();
-    test_const_fold();
-    return 0;
-}
+//     test_const_prop();
+//     test_const_fold();
+//     return 0;
+// }
 

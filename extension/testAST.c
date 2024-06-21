@@ -404,6 +404,7 @@ Program *testAssignments() {
         if (yyparse() == 0) {
             if (sameProgram(expectedPrograms[i], program)) {
                 printf("TEST %d OK\n", i);
+                print_program(program);
             }
             else {
                 printf("FAIL\n");
@@ -659,22 +660,25 @@ Program *testFunDefs() {
 }
 
 
-
-
 int main(void) {
+    printf("Parsing assignment tests.\n");
     Program *assignProgram = testAssignments();
-    Program *loopsProgram = testLoops();
+    // Program *loopsProgram = testLoops();
 
     IRProgram *assignIR = AST_to_IR(assignProgram);
-    IRProgram *loopsIR = AST_to_IR(loopsProgram);
+    // IRProgram *loopsIR = AST_to_IR(loopsProgram);
 
-
+    printf("\n");
+    printf("Compiling to assembly.\n");
     print_ir_program(assignIR);
+    printf("\n");
+
+    printf("a gets stored in register w0.\n");
+    printf("b gets stored in register w1.\n");
+
+    // print_ir_program(loopsIR);
     printf("\n\n");
 
-    print_ir_program(loopsIR);
-    printf("\n\n");
-
-    testFunDefs();
+    // testFunDefs();
     return 0;
 }

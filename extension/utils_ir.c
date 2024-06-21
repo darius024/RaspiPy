@@ -6,6 +6,8 @@
 #include "ir.h"
 #include "utils_ir.h"
 
+int registers[NUM_REGISTERS] = {NOT_USED};
+
 BranchConditional getComparison(BinaryOp *binary_op)
 {
     if (strcmp(binary_op->op, "==")) {
@@ -52,7 +54,7 @@ BranchConditional getNegatedComparison(BinaryOp *binary_op)
     exit(EXIT_FAILURE);
 }
 
-uint8_t getRegister(Name *name, State *state)
+uint8_t getRegisterState(Name *name, State *state)
 {
     for (int i = 0; i < state->map_size; i++) {
         if (strcmp(name->name, state->map[i].name) == 0) {

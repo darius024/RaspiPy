@@ -7,7 +7,6 @@
 #include "ast_to_ir.h"
 #include "eval.h"
 #include "ir.h"
-#include "state.h"
 #include "utils_ir.h"
 
 static void Statements_to_IR(IRProgram *program, Statements *statements, State *state, int *line, int count_update);
@@ -17,7 +16,7 @@ static void AssignmentStmt_to_IR(IRProgram *program, AssignmentStmt *assign_stmt
 {
     uint8_t expr_reg = evalExpression(program, assign_stmt->expression, state, line, count_update);
     uint8_t reg = (strcmp(assign_stmt->name, "ret") == 0)
-                ? X0 : getRegister(create_name(assign_stmt->name), state);
+                ? X0 : getRegisterState(create_name(assign_stmt->name), state);
     IRInstruction *instr = create_ir_instruction(IR_MOV, reg, expr_reg, NOT_USED, NOT_USED, line);
     instr->dest->type = REG;
     instr->src1->type = REG;
@@ -60,12 +59,12 @@ static void ForStmt_to_IR(IRProgram *program, ForStmt *for_stmt, State *state, i
 
     // Condition check
     int line_to_return = *line;
-    uint8_t reg = getRegister(create_name(assign->name), state);
+    uint8_t reg = getRegisterState(create_name(assign->name), state);
     IRInstruction *condition = create_ir_instruction(IR_CMP, reg, upp_bound, NOT_USED, NOT_USED, line);
     condition->dest->type = REG;
     condition->src1->type = IMM;
     insertInstruction(program, condition, count_update);
-    IRInstruction *condition2 = create_ir_instruction(IR_BCOND, GE, NOT_USED, NOT_USED, NOT_USED, line);
+    IRInstruction *condition2 = create_ir_instruction(IR_BCOND, B_GE, NOT_USED, NOT_USED, NOT_USED, line);
     condition2->dest->type = LABEL;
     insertInstruction(program, condition2, count_update);
 
@@ -73,7 +72,7 @@ static void ForStmt_to_IR(IRProgram *program, ForStmt *for_stmt, State *state, i
     Statements_to_IR(program, for_stmt->block, state, line, count_update + upp_bound - low_bound);
 
     // Update counter
-    int r = getRegister(create_name(assign->name), state);
+    int r = getRegisterState(create_name(assign->name), state);
     IRInstruction *update_counter = create_ir_instruction(IR_ADD, r, r, 1, NOT_USED, line);
     update_counter->dest->type = REG;
     update_counter->src1->type = REG;

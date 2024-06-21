@@ -2,20 +2,17 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "hotspot.h"
 #include "ir.h"
-#include "state.h"
+#include "utils_ir.h"
 #include "../src/constants.h"
 #include "../src/instructions.h"
 #include "../src/utils_as.h"
 
-int registers[NUM_REGISTERS] = {NOT_USED};
-
-uint32_t generateInstruction(IRInstruction *instruction) 
+uint32_t generateInstruction(State *state, IRInstruction *instruction) 
 {
     // Check for hotspot - C to assembly to binary
     if (instruction->count >= THRESHOLD) {
-        return returnHotSpot(instruction->line);
+        return returnHotSpot(state, instruction->line);
     }
     // No hotspot - C to binary
     uint32_t out = 0;

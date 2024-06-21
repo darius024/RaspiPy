@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include "ast.h"
 #include "ir.h"
-#include "state.h"
 
 #define MAX_ARGS 8
 
@@ -12,7 +11,7 @@ State *create_state();
 
 BranchConditional getComparison(BinaryOp *binary_op);
 BranchConditional getNegatedComparison(BinaryOp *binary_op);
-uint8_t getRegister(Name *name, State *state);
+uint8_t getRegisterState(Name *name, State *state);
 uint8_t getNextFreeRegister();
 void freeRegister(State *state, uint8_t i);
 void freeNonVarRegister(State *state, uint8_t reg);

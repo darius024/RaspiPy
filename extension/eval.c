@@ -20,7 +20,7 @@ uint8_t evalExpression(IRProgram *program, Expression *expression, State *state,
     expression = const_prop(expression, state);
     switch (expression->tag) {
         case EXPR_NAME: {
-            return getRegister(expression->name, state);
+            return getRegisterState(expression->name, state);
         }
         case EXPR_INT: {
             uint8_t reg = getNextFreeRegister();

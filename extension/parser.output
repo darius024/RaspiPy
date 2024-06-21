@@ -1,0 +1,2143 @@
+Terminals unused in grammar
+
+    ELIF
+    FALSE
+    GLOBAL
+    TRUE
+    SEMI_COLON
+    INDENT
+    DEDENT
+
+
+State 10 conflicts: 1 shift/reduce
+State 103 conflicts: 8 shift/reduce
+State 104 conflicts: 1 shift/reduce
+
+
+Grammar
+
+    0 $accept: program $end
+
+    1 program: statements
+
+    2 statements: ε
+    3           | statements statement
+
+    4 statement: compound_stmt
+    5          | simple_stmt
+
+    6 simple_stmt: assignment_stmt
+    7            | return_stmt
+    8            | BREAK
+    9            | CONTINUE
+
+   10 assignment_stmt: NAME ASSIGN expression
+   11                | NAME SUB_ASSIGN expression
+   12                | NAME ADD_ASSIGN expression
+   13                | NAME MUL_ASSIGN expression
+   14                | NAME DIV_ASSIGN expression
+   15                | NAME MOD_ASSIGN expression
+   16                | NAME AND_ASSIGN expression
+   17                | NAME OR_ASSIGN expression
+   18                | NAME XOR_ASSIGN expression
+   19                | NAME LEFT_SHIFT_ASSIGN expression
+   20                | NAME RIGHT_SHIFT_ASSIGN expression
+
+   21 return_stmt: RETURN expression
+   22            | RETURN
+
+   23 compound_stmt: if_stmt
+   24              | while_stmt
+   25              | for_stmt
+   26              | function_def
+
+   27 if_stmt: IF expression COLON block ELSE COLON block
+   28        | IF expression COLON block
+
+   29 while_stmt: WHILE expression COLON block
+
+   30 for_stmt: FOR NAME IN expression COLON block
+
+   31 function_def: DEF NAME L_PAREN parameters R_PAREN COLON block
+
+   32 parameters: parameters COMMA NAME
+   33           | NAME
+   34           | ε
+
+   35 block: statements
+
+   36 expression: disjunction
+
+   37 disjunction: disjunction OR conjunction
+   38            | conjunction
+
+   39 conjunction: conjunction AND inversion
+   40            | inversion
+
+   41 inversion: NOT inversion
+   42          | comparison
+
+   43 comparison: bitwise_or EQ bitwise_or
+   44           | bitwise_or NE bitwise_or
+   45           | bitwise_or GT bitwise_or
+   46           | bitwise_or GE bitwise_or
+   47           | bitwise_or LT bitwise_or
+   48           | bitwise_or LE bitwise_or
+   49           | bitwise_or
+
+   50 bitwise_or: bitwise_or BITWISE_OR bitwise_xor
+   51           | bitwise_xor
+
+   52 bitwise_xor: bitwise_xor BITWISE_XOR bitwise_and
+   53            | bitwise_and
+
+   54 bitwise_and: bitwise_and BITWISE_AND shift_expr
+   55            | shift_expr
+
+   56 shift_expr: shift_expr LEFT_SHIFT sum
+   57           | shift_expr RIGHT_SHIFT sum
+   58           | sum
+
+   59 sum: sum ADD term
+   60    | sum SUB term
+   61    | term
+
+   62 term: term MUL factor
+   63     | term DIV factor
+   64     | term MOD factor
+   65     | factor
+
+   66 factor: ADD factor
+   67       | SUB factor
+   68       | NEG factor
+   69       | function_call
+   70       | atom
+
+   71 function_call: NAME L_PAREN arguments R_PAREN
+
+   72 arguments: arguments COMMA expression
+   73          | expression
+   74          | ε
+
+   75 atom: NAME
+   76     | DEC_INTEGER
+   77     | HEX_INTEGER
+   78     | L_PAREN expression R_PAREN
+
+
+Terminals, with rules where they appear
+
+    $end (0) 0
+    error (256)
+    DEC_INTEGER <num> (258) 76
+    HEX_INTEGER <num> (259) 77
+    NAME <str> (260) 10 11 12 13 14 15 16 17 18 19 20 30 31 32 33 71 75
+    AND (261) 39
+    BREAK (262) 8
+    CONTINUE (263) 9
+    DEF (264) 31
+    ELIF (265)
+    ELSE (266) 27
+    FALSE (267)
+    FOR (268) 30
+    GLOBAL (269)
+    IF (270) 27 28
+    IN (271) 30
+    NOT (272) 41
+    OR (273) 37
+    RETURN (274) 21 22
+    TRUE (275)
+    WHILE (276) 29
+    L_PAREN (277) 31 71 78
+    R_PAREN (278) 31 71 78
+    COMMA (279) 32 72
+    COLON (280) 27 28 29 30 31
+    SEMI_COLON (281)
+    ASSIGN (282) 10
+    NEG (283) 68
+    BITWISE_OR (284) 50
+    BITWISE_XOR (285) 52
+    BITWISE_AND (286) 54
+    LEFT_SHIFT (287) 56
+    RIGHT_SHIFT (288) 57
+    ADD (289) 59 66
+    SUB (290) 60 67
+    MUL (291) 62
+    DIV (292) 63
+    MOD (293) 64
+    LT (294) 47
+    GT (295) 45
+    EQ (296) 43
+    GE (297) 46
+    LE (298) 48
+    NE (299) 44
+    ADD_ASSIGN (300) 12
+    SUB_ASSIGN (301) 11
+    MUL_ASSIGN (302) 13
+    DIV_ASSIGN (303) 14
+    MOD_ASSIGN (304) 15
+    AND_ASSIGN (305) 16
+    OR_ASSIGN (306) 17
+    XOR_ASSIGN (307) 18
+    LEFT_SHIFT_ASSIGN (308) 19
+    RIGHT_SHIFT_ASSIGN (309) 20
+    INDENT (310)
+    DEDENT (311)
+
+
+Nonterminals, with rules where they appear
+
+    $accept (57)
+        on left: 0
+    program <program> (58)
+        on left: 1
+        on right: 0
+    statements <statements> (59)
+        on left: 2 3
+        on right: 1 3 35
+    statement <statement> (60)
+        on left: 4 5
+        on right: 3
+    simple_stmt <statement> (61)
+        on left: 6 7 8 9
+        on right: 5
+    assignment_stmt <assignment_stmt> (62)
+        on left: 10 11 12 13 14 15 16 17 18 19 20
+        on right: 6
+    return_stmt <flow_stmt> (63)
+        on left: 21 22
+        on right: 7
+    compound_stmt <statement> (64)
+        on left: 23 24 25 26
+        on right: 4
+    if_stmt <if_stmt> (65)
+        on left: 27 28
+        on right: 23
+    while_stmt <while_stmt> (66)
+        on left: 29
+        on right: 24
+    for_stmt <for_stmt> (67)
+        on left: 30
+        on right: 25
+    function_def <function_def> (68)
+        on left: 31
+        on right: 26
+    parameters <parameters> (69)
+        on left: 32 33 34
+        on right: 31 32
+    block <statements> (70)
+        on left: 35
+        on right: 27 28 29 30 31
+    expression <expression> (71)
+        on left: 36
+        on right: 10 11 12 13 14 15 16 17 18 19 20 21 27 28 29 30 72 73 78
+    disjunction <expression> (72)
+        on left: 37 38
+        on right: 36 37
+    conjunction <expression> (73)
+        on left: 39 40
+        on right: 37 38 39
+    inversion <expression> (74)
+        on left: 41 42
+        on right: 39 40 41
+    comparison <expression> (75)
+        on left: 43 44 45 46 47 48 49
+        on right: 42
+    bitwise_or <expression> (76)
+        on left: 50 51
+        on right: 43 44 45 46 47 48 49 50
+    bitwise_xor <expression> (77)
+        on left: 52 53
+        on right: 50 51 52
+    bitwise_and <expression> (78)
+        on left: 54 55
+        on right: 52 53 54
+    shift_expr <expression> (79)
+        on left: 56 57 58
+        on right: 54 55 56 57
+    sum <expression> (80)
+        on left: 59 60 61
+        on right: 56 57 58 59 60
+    term <expression> (81)
+        on left: 62 63 64 65
+        on right: 59 60 61 62 63 64
+    factor <expression> (82)
+        on left: 66 67 68 69 70
+        on right: 62 63 64 65 66 67 68
+    function_call <expression> (83)
+        on left: 71
+        on right: 69
+    arguments <arguments> (84)
+        on left: 72 73 74
+        on right: 71 72
+    atom <expression> (85)
+        on left: 75 76 77 78
+        on right: 70
+
+
+State 0
+
+    0 $accept: • program $end
+
+    $default  reduce using rule 2 (statements)
+
+    program     go to state 1
+    statements  go to state 2
+
+
+State 1
+
+    0 $accept: program • $end
+
+    $end  shift, and go to state 3
+
+
+State 2
+
+    1 program: statements •
+    3 statements: statements • statement
+
+    NAME      shift, and go to state 4
+    BREAK     shift, and go to state 5
+    CONTINUE  shift, and go to state 6
+    DEF       shift, and go to state 7
+    FOR       shift, and go to state 8
+    IF        shift, and go to state 9
+    RETURN    shift, and go to state 10
+    WHILE     shift, and go to state 11
+
+    $default  reduce using rule 1 (program)
+
+    statement        go to state 12
+    simple_stmt      go to state 13
+    assignment_stmt  go to state 14
+    return_stmt      go to state 15
+    compound_stmt    go to state 16
+    if_stmt          go to state 17
+    while_stmt       go to state 18
+    for_stmt         go to state 19
+    function_def     go to state 20
+
+
+State 3
+
+    0 $accept: program $end •
+
+    $default  accept
+
+
+State 4
+
+   10 assignment_stmt: NAME • ASSIGN expression
+   11                | NAME • SUB_ASSIGN expression
+   12                | NAME • ADD_ASSIGN expression
+   13                | NAME • MUL_ASSIGN expression
+   14                | NAME • DIV_ASSIGN expression
+   15                | NAME • MOD_ASSIGN expression
+   16                | NAME • AND_ASSIGN expression
+   17                | NAME • OR_ASSIGN expression
+   18                | NAME • XOR_ASSIGN expression
+   19                | NAME • LEFT_SHIFT_ASSIGN expression
+   20                | NAME • RIGHT_SHIFT_ASSIGN expression
+
+    ASSIGN              shift, and go to state 21
+    ADD_ASSIGN          shift, and go to state 22
+    SUB_ASSIGN          shift, and go to state 23
+    MUL_ASSIGN          shift, and go to state 24
+    DIV_ASSIGN          shift, and go to state 25
+    MOD_ASSIGN          shift, and go to state 26
+    AND_ASSIGN          shift, and go to state 27
+    OR_ASSIGN           shift, and go to state 28
+    XOR_ASSIGN          shift, and go to state 29
+    LEFT_SHIFT_ASSIGN   shift, and go to state 30
+    RIGHT_SHIFT_ASSIGN  shift, and go to state 31
+
+
+State 5
+
+    8 simple_stmt: BREAK •
+
+    $default  reduce using rule 8 (simple_stmt)
+
+
+State 6
+
+    9 simple_stmt: CONTINUE •
+
+    $default  reduce using rule 9 (simple_stmt)
+
+
+State 7
+
+   31 function_def: DEF • NAME L_PAREN parameters R_PAREN COLON block
+
+    NAME  shift, and go to state 32
+
+
+State 8
+
+   30 for_stmt: FOR • NAME IN expression COLON block
+
+    NAME  shift, and go to state 33
+
+
+State 9
+
+   27 if_stmt: IF • expression COLON block ELSE COLON block
+   28        | IF • expression COLON block
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 42
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 10
+
+   21 return_stmt: RETURN • expression
+   22            | RETURN •
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    NAME      [reduce using rule 22 (return_stmt)]
+    $default  reduce using rule 22 (return_stmt)
+
+    expression     go to state 56
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 11
+
+   29 while_stmt: WHILE • expression COLON block
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 57
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 12
+
+    3 statements: statements statement •
+
+    $default  reduce using rule 3 (statements)
+
+
+State 13
+
+    5 statement: simple_stmt •
+
+    $default  reduce using rule 5 (statement)
+
+
+State 14
+
+    6 simple_stmt: assignment_stmt •
+
+    $default  reduce using rule 6 (simple_stmt)
+
+
+State 15
+
+    7 simple_stmt: return_stmt •
+
+    $default  reduce using rule 7 (simple_stmt)
+
+
+State 16
+
+    4 statement: compound_stmt •
+
+    $default  reduce using rule 4 (statement)
+
+
+State 17
+
+   23 compound_stmt: if_stmt •
+
+    $default  reduce using rule 23 (compound_stmt)
+
+
+State 18
+
+   24 compound_stmt: while_stmt •
+
+    $default  reduce using rule 24 (compound_stmt)
+
+
+State 19
+
+   25 compound_stmt: for_stmt •
+
+    $default  reduce using rule 25 (compound_stmt)
+
+
+State 20
+
+   26 compound_stmt: function_def •
+
+    $default  reduce using rule 26 (compound_stmt)
+
+
+State 21
+
+   10 assignment_stmt: NAME ASSIGN • expression
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 58
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 22
+
+   12 assignment_stmt: NAME ADD_ASSIGN • expression
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 59
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 23
+
+   11 assignment_stmt: NAME SUB_ASSIGN • expression
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 60
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 24
+
+   13 assignment_stmt: NAME MUL_ASSIGN • expression
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 61
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 25
+
+   14 assignment_stmt: NAME DIV_ASSIGN • expression
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 62
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 26
+
+   15 assignment_stmt: NAME MOD_ASSIGN • expression
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 63
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 27
+
+   16 assignment_stmt: NAME AND_ASSIGN • expression
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 64
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 28
+
+   17 assignment_stmt: NAME OR_ASSIGN • expression
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 65
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 29
+
+   18 assignment_stmt: NAME XOR_ASSIGN • expression
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 66
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 30
+
+   19 assignment_stmt: NAME LEFT_SHIFT_ASSIGN • expression
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 67
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 31
+
+   20 assignment_stmt: NAME RIGHT_SHIFT_ASSIGN • expression
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 68
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 32
+
+   31 function_def: DEF NAME • L_PAREN parameters R_PAREN COLON block
+
+    L_PAREN  shift, and go to state 69
+
+
+State 33
+
+   30 for_stmt: FOR NAME • IN expression COLON block
+
+    IN  shift, and go to state 70
+
+
+State 34
+
+   76 atom: DEC_INTEGER •
+
+    $default  reduce using rule 76 (atom)
+
+
+State 35
+
+   77 atom: HEX_INTEGER •
+
+    $default  reduce using rule 77 (atom)
+
+
+State 36
+
+   71 function_call: NAME • L_PAREN arguments R_PAREN
+   75 atom: NAME •
+
+    L_PAREN  shift, and go to state 71
+
+    $default  reduce using rule 75 (atom)
+
+
+State 37
+
+   41 inversion: NOT • inversion
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    inversion      go to state 72
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 38
+
+   78 atom: L_PAREN • expression R_PAREN
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 73
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 39
+
+   68 factor: NEG • factor
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    factor         go to state 74
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 40
+
+   66 factor: ADD • factor
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    factor         go to state 75
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 41
+
+   67 factor: SUB • factor
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    factor         go to state 76
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 42
+
+   27 if_stmt: IF expression • COLON block ELSE COLON block
+   28        | IF expression • COLON block
+
+    COLON  shift, and go to state 77
+
+
+State 43
+
+   36 expression: disjunction •
+   37 disjunction: disjunction • OR conjunction
+
+    OR  shift, and go to state 78
+
+    $default  reduce using rule 36 (expression)
+
+
+State 44
+
+   38 disjunction: conjunction •
+   39 conjunction: conjunction • AND inversion
+
+    AND  shift, and go to state 79
+
+    $default  reduce using rule 38 (disjunction)
+
+
+State 45
+
+   40 conjunction: inversion •
+
+    $default  reduce using rule 40 (conjunction)
+
+
+State 46
+
+   42 inversion: comparison •
+
+    $default  reduce using rule 42 (inversion)
+
+
+State 47
+
+   43 comparison: bitwise_or • EQ bitwise_or
+   44           | bitwise_or • NE bitwise_or
+   45           | bitwise_or • GT bitwise_or
+   46           | bitwise_or • GE bitwise_or
+   47           | bitwise_or • LT bitwise_or
+   48           | bitwise_or • LE bitwise_or
+   49           | bitwise_or •
+   50 bitwise_or: bitwise_or • BITWISE_OR bitwise_xor
+
+    BITWISE_OR  shift, and go to state 80
+    LT          shift, and go to state 81
+    GT          shift, and go to state 82
+    EQ          shift, and go to state 83
+    GE          shift, and go to state 84
+    LE          shift, and go to state 85
+    NE          shift, and go to state 86
+
+    $default  reduce using rule 49 (comparison)
+
+
+State 48
+
+   51 bitwise_or: bitwise_xor •
+   52 bitwise_xor: bitwise_xor • BITWISE_XOR bitwise_and
+
+    BITWISE_XOR  shift, and go to state 87
+
+    $default  reduce using rule 51 (bitwise_or)
+
+
+State 49
+
+   53 bitwise_xor: bitwise_and •
+   54 bitwise_and: bitwise_and • BITWISE_AND shift_expr
+
+    BITWISE_AND  shift, and go to state 88
+
+    $default  reduce using rule 53 (bitwise_xor)
+
+
+State 50
+
+   55 bitwise_and: shift_expr •
+   56 shift_expr: shift_expr • LEFT_SHIFT sum
+   57           | shift_expr • RIGHT_SHIFT sum
+
+    LEFT_SHIFT   shift, and go to state 89
+    RIGHT_SHIFT  shift, and go to state 90
+
+    $default  reduce using rule 55 (bitwise_and)
+
+
+State 51
+
+   58 shift_expr: sum •
+   59 sum: sum • ADD term
+   60    | sum • SUB term
+
+    ADD  shift, and go to state 91
+    SUB  shift, and go to state 92
+
+    $default  reduce using rule 58 (shift_expr)
+
+
+State 52
+
+   61 sum: term •
+   62 term: term • MUL factor
+   63     | term • DIV factor
+   64     | term • MOD factor
+
+    MUL  shift, and go to state 93
+    DIV  shift, and go to state 94
+    MOD  shift, and go to state 95
+
+    $default  reduce using rule 61 (sum)
+
+
+State 53
+
+   65 term: factor •
+
+    $default  reduce using rule 65 (term)
+
+
+State 54
+
+   69 factor: function_call •
+
+    $default  reduce using rule 69 (factor)
+
+
+State 55
+
+   70 factor: atom •
+
+    $default  reduce using rule 70 (factor)
+
+
+State 56
+
+   21 return_stmt: RETURN expression •
+
+    $default  reduce using rule 21 (return_stmt)
+
+
+State 57
+
+   29 while_stmt: WHILE expression • COLON block
+
+    COLON  shift, and go to state 96
+
+
+State 58
+
+   10 assignment_stmt: NAME ASSIGN expression •
+
+    $default  reduce using rule 10 (assignment_stmt)
+
+
+State 59
+
+   12 assignment_stmt: NAME ADD_ASSIGN expression •
+
+    $default  reduce using rule 12 (assignment_stmt)
+
+
+State 60
+
+   11 assignment_stmt: NAME SUB_ASSIGN expression •
+
+    $default  reduce using rule 11 (assignment_stmt)
+
+
+State 61
+
+   13 assignment_stmt: NAME MUL_ASSIGN expression •
+
+    $default  reduce using rule 13 (assignment_stmt)
+
+
+State 62
+
+   14 assignment_stmt: NAME DIV_ASSIGN expression •
+
+    $default  reduce using rule 14 (assignment_stmt)
+
+
+State 63
+
+   15 assignment_stmt: NAME MOD_ASSIGN expression •
+
+    $default  reduce using rule 15 (assignment_stmt)
+
+
+State 64
+
+   16 assignment_stmt: NAME AND_ASSIGN expression •
+
+    $default  reduce using rule 16 (assignment_stmt)
+
+
+State 65
+
+   17 assignment_stmt: NAME OR_ASSIGN expression •
+
+    $default  reduce using rule 17 (assignment_stmt)
+
+
+State 66
+
+   18 assignment_stmt: NAME XOR_ASSIGN expression •
+
+    $default  reduce using rule 18 (assignment_stmt)
+
+
+State 67
+
+   19 assignment_stmt: NAME LEFT_SHIFT_ASSIGN expression •
+
+    $default  reduce using rule 19 (assignment_stmt)
+
+
+State 68
+
+   20 assignment_stmt: NAME RIGHT_SHIFT_ASSIGN expression •
+
+    $default  reduce using rule 20 (assignment_stmt)
+
+
+State 69
+
+   31 function_def: DEF NAME L_PAREN • parameters R_PAREN COLON block
+
+    NAME  shift, and go to state 97
+
+    $default  reduce using rule 34 (parameters)
+
+    parameters  go to state 98
+
+
+State 70
+
+   30 for_stmt: FOR NAME IN • expression COLON block
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 99
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 71
+
+   71 function_call: NAME L_PAREN • arguments R_PAREN
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    $default  reduce using rule 74 (arguments)
+
+    expression     go to state 100
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    arguments      go to state 101
+    atom           go to state 55
+
+
+State 72
+
+   41 inversion: NOT inversion •
+
+    $default  reduce using rule 41 (inversion)
+
+
+State 73
+
+   78 atom: L_PAREN expression • R_PAREN
+
+    R_PAREN  shift, and go to state 102
+
+
+State 74
+
+   68 factor: NEG factor •
+
+    $default  reduce using rule 68 (factor)
+
+
+State 75
+
+   66 factor: ADD factor •
+
+    $default  reduce using rule 66 (factor)
+
+
+State 76
+
+   67 factor: SUB factor •
+
+    $default  reduce using rule 67 (factor)
+
+
+State 77
+
+   27 if_stmt: IF expression COLON • block ELSE COLON block
+   28        | IF expression COLON • block
+
+    $default  reduce using rule 2 (statements)
+
+    statements  go to state 103
+    block       go to state 104
+
+
+State 78
+
+   37 disjunction: disjunction OR • conjunction
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    conjunction    go to state 105
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 79
+
+   39 conjunction: conjunction AND • inversion
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    inversion      go to state 106
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 80
+
+   50 bitwise_or: bitwise_or BITWISE_OR • bitwise_xor
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    bitwise_xor    go to state 107
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 81
+
+   47 comparison: bitwise_or LT • bitwise_or
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    bitwise_or     go to state 108
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 82
+
+   45 comparison: bitwise_or GT • bitwise_or
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    bitwise_or     go to state 109
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 83
+
+   43 comparison: bitwise_or EQ • bitwise_or
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    bitwise_or     go to state 110
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 84
+
+   46 comparison: bitwise_or GE • bitwise_or
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    bitwise_or     go to state 111
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 85
+
+   48 comparison: bitwise_or LE • bitwise_or
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    bitwise_or     go to state 112
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 86
+
+   44 comparison: bitwise_or NE • bitwise_or
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    bitwise_or     go to state 113
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 87
+
+   52 bitwise_xor: bitwise_xor BITWISE_XOR • bitwise_and
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    bitwise_and    go to state 114
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 88
+
+   54 bitwise_and: bitwise_and BITWISE_AND • shift_expr
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    shift_expr     go to state 115
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 89
+
+   56 shift_expr: shift_expr LEFT_SHIFT • sum
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    sum            go to state 116
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 90
+
+   57 shift_expr: shift_expr RIGHT_SHIFT • sum
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    sum            go to state 117
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 91
+
+   59 sum: sum ADD • term
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    term           go to state 118
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 92
+
+   60 sum: sum SUB • term
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    term           go to state 119
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 93
+
+   62 term: term MUL • factor
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    factor         go to state 120
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 94
+
+   63 term: term DIV • factor
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    factor         go to state 121
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 95
+
+   64 term: term MOD • factor
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    factor         go to state 122
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 96
+
+   29 while_stmt: WHILE expression COLON • block
+
+    $default  reduce using rule 2 (statements)
+
+    statements  go to state 103
+    block       go to state 123
+
+
+State 97
+
+   33 parameters: NAME •
+
+    $default  reduce using rule 33 (parameters)
+
+
+State 98
+
+   31 function_def: DEF NAME L_PAREN parameters • R_PAREN COLON block
+   32 parameters: parameters • COMMA NAME
+
+    R_PAREN  shift, and go to state 124
+    COMMA    shift, and go to state 125
+
+
+State 99
+
+   30 for_stmt: FOR NAME IN expression • COLON block
+
+    COLON  shift, and go to state 126
+
+
+State 100
+
+   73 arguments: expression •
+
+    $default  reduce using rule 73 (arguments)
+
+
+State 101
+
+   71 function_call: NAME L_PAREN arguments • R_PAREN
+   72 arguments: arguments • COMMA expression
+
+    R_PAREN  shift, and go to state 127
+    COMMA    shift, and go to state 128
+
+
+State 102
+
+   78 atom: L_PAREN expression R_PAREN •
+
+    $default  reduce using rule 78 (atom)
+
+
+State 103
+
+    3 statements: statements • statement
+   35 block: statements •
+
+    NAME      shift, and go to state 4
+    BREAK     shift, and go to state 5
+    CONTINUE  shift, and go to state 6
+    DEF       shift, and go to state 7
+    FOR       shift, and go to state 8
+    IF        shift, and go to state 9
+    RETURN    shift, and go to state 10
+    WHILE     shift, and go to state 11
+
+    NAME      [reduce using rule 35 (block)]
+    BREAK     [reduce using rule 35 (block)]
+    CONTINUE  [reduce using rule 35 (block)]
+    DEF       [reduce using rule 35 (block)]
+    FOR       [reduce using rule 35 (block)]
+    IF        [reduce using rule 35 (block)]
+    RETURN    [reduce using rule 35 (block)]
+    WHILE     [reduce using rule 35 (block)]
+    $default  reduce using rule 35 (block)
+
+    statement        go to state 12
+    simple_stmt      go to state 13
+    assignment_stmt  go to state 14
+    return_stmt      go to state 15
+    compound_stmt    go to state 16
+    if_stmt          go to state 17
+    while_stmt       go to state 18
+    for_stmt         go to state 19
+    function_def     go to state 20
+
+
+State 104
+
+   27 if_stmt: IF expression COLON block • ELSE COLON block
+   28        | IF expression COLON block •
+
+    ELSE  shift, and go to state 129
+
+    ELSE      [reduce using rule 28 (if_stmt)]
+    $default  reduce using rule 28 (if_stmt)
+
+
+State 105
+
+   37 disjunction: disjunction OR conjunction •
+   39 conjunction: conjunction • AND inversion
+
+    AND  shift, and go to state 79
+
+    $default  reduce using rule 37 (disjunction)
+
+
+State 106
+
+   39 conjunction: conjunction AND inversion •
+
+    $default  reduce using rule 39 (conjunction)
+
+
+State 107
+
+   50 bitwise_or: bitwise_or BITWISE_OR bitwise_xor •
+   52 bitwise_xor: bitwise_xor • BITWISE_XOR bitwise_and
+
+    BITWISE_XOR  shift, and go to state 87
+
+    $default  reduce using rule 50 (bitwise_or)
+
+
+State 108
+
+   47 comparison: bitwise_or LT bitwise_or •
+   50 bitwise_or: bitwise_or • BITWISE_OR bitwise_xor
+
+    BITWISE_OR  shift, and go to state 80
+
+    $default  reduce using rule 47 (comparison)
+
+
+State 109
+
+   45 comparison: bitwise_or GT bitwise_or •
+   50 bitwise_or: bitwise_or • BITWISE_OR bitwise_xor
+
+    BITWISE_OR  shift, and go to state 80
+
+    $default  reduce using rule 45 (comparison)
+
+
+State 110
+
+   43 comparison: bitwise_or EQ bitwise_or •
+   50 bitwise_or: bitwise_or • BITWISE_OR bitwise_xor
+
+    BITWISE_OR  shift, and go to state 80
+
+    $default  reduce using rule 43 (comparison)
+
+
+State 111
+
+   46 comparison: bitwise_or GE bitwise_or •
+   50 bitwise_or: bitwise_or • BITWISE_OR bitwise_xor
+
+    BITWISE_OR  shift, and go to state 80
+
+    $default  reduce using rule 46 (comparison)
+
+
+State 112
+
+   48 comparison: bitwise_or LE bitwise_or •
+   50 bitwise_or: bitwise_or • BITWISE_OR bitwise_xor
+
+    BITWISE_OR  shift, and go to state 80
+
+    $default  reduce using rule 48 (comparison)
+
+
+State 113
+
+   44 comparison: bitwise_or NE bitwise_or •
+   50 bitwise_or: bitwise_or • BITWISE_OR bitwise_xor
+
+    BITWISE_OR  shift, and go to state 80
+
+    $default  reduce using rule 44 (comparison)
+
+
+State 114
+
+   52 bitwise_xor: bitwise_xor BITWISE_XOR bitwise_and •
+   54 bitwise_and: bitwise_and • BITWISE_AND shift_expr
+
+    BITWISE_AND  shift, and go to state 88
+
+    $default  reduce using rule 52 (bitwise_xor)
+
+
+State 115
+
+   54 bitwise_and: bitwise_and BITWISE_AND shift_expr •
+   56 shift_expr: shift_expr • LEFT_SHIFT sum
+   57           | shift_expr • RIGHT_SHIFT sum
+
+    LEFT_SHIFT   shift, and go to state 89
+    RIGHT_SHIFT  shift, and go to state 90
+
+    $default  reduce using rule 54 (bitwise_and)
+
+
+State 116
+
+   56 shift_expr: shift_expr LEFT_SHIFT sum •
+   59 sum: sum • ADD term
+   60    | sum • SUB term
+
+    ADD  shift, and go to state 91
+    SUB  shift, and go to state 92
+
+    $default  reduce using rule 56 (shift_expr)
+
+
+State 117
+
+   57 shift_expr: shift_expr RIGHT_SHIFT sum •
+   59 sum: sum • ADD term
+   60    | sum • SUB term
+
+    ADD  shift, and go to state 91
+    SUB  shift, and go to state 92
+
+    $default  reduce using rule 57 (shift_expr)
+
+
+State 118
+
+   59 sum: sum ADD term •
+   62 term: term • MUL factor
+   63     | term • DIV factor
+   64     | term • MOD factor
+
+    MUL  shift, and go to state 93
+    DIV  shift, and go to state 94
+    MOD  shift, and go to state 95
+
+    $default  reduce using rule 59 (sum)
+
+
+State 119
+
+   60 sum: sum SUB term •
+   62 term: term • MUL factor
+   63     | term • DIV factor
+   64     | term • MOD factor
+
+    MUL  shift, and go to state 93
+    DIV  shift, and go to state 94
+    MOD  shift, and go to state 95
+
+    $default  reduce using rule 60 (sum)
+
+
+State 120
+
+   62 term: term MUL factor •
+
+    $default  reduce using rule 62 (term)
+
+
+State 121
+
+   63 term: term DIV factor •
+
+    $default  reduce using rule 63 (term)
+
+
+State 122
+
+   64 term: term MOD factor •
+
+    $default  reduce using rule 64 (term)
+
+
+State 123
+
+   29 while_stmt: WHILE expression COLON block •
+
+    $default  reduce using rule 29 (while_stmt)
+
+
+State 124
+
+   31 function_def: DEF NAME L_PAREN parameters R_PAREN • COLON block
+
+    COLON  shift, and go to state 130
+
+
+State 125
+
+   32 parameters: parameters COMMA • NAME
+
+    NAME  shift, and go to state 131
+
+
+State 126
+
+   30 for_stmt: FOR NAME IN expression COLON • block
+
+    $default  reduce using rule 2 (statements)
+
+    statements  go to state 103
+    block       go to state 132
+
+
+State 127
+
+   71 function_call: NAME L_PAREN arguments R_PAREN •
+
+    $default  reduce using rule 71 (function_call)
+
+
+State 128
+
+   72 arguments: arguments COMMA • expression
+
+    DEC_INTEGER  shift, and go to state 34
+    HEX_INTEGER  shift, and go to state 35
+    NAME         shift, and go to state 36
+    NOT          shift, and go to state 37
+    L_PAREN      shift, and go to state 38
+    NEG          shift, and go to state 39
+    ADD          shift, and go to state 40
+    SUB          shift, and go to state 41
+
+    expression     go to state 133
+    disjunction    go to state 43
+    conjunction    go to state 44
+    inversion      go to state 45
+    comparison     go to state 46
+    bitwise_or     go to state 47
+    bitwise_xor    go to state 48
+    bitwise_and    go to state 49
+    shift_expr     go to state 50
+    sum            go to state 51
+    term           go to state 52
+    factor         go to state 53
+    function_call  go to state 54
+    atom           go to state 55
+
+
+State 129
+
+   27 if_stmt: IF expression COLON block ELSE • COLON block
+
+    COLON  shift, and go to state 134
+
+
+State 130
+
+   31 function_def: DEF NAME L_PAREN parameters R_PAREN COLON • block
+
+    $default  reduce using rule 2 (statements)
+
+    statements  go to state 103
+    block       go to state 135
+
+
+State 131
+
+   32 parameters: parameters COMMA NAME •
+
+    $default  reduce using rule 32 (parameters)
+
+
+State 132
+
+   30 for_stmt: FOR NAME IN expression COLON block •
+
+    $default  reduce using rule 30 (for_stmt)
+
+
+State 133
+
+   72 arguments: arguments COMMA expression •
+
+    $default  reduce using rule 72 (arguments)
+
+
+State 134
+
+   27 if_stmt: IF expression COLON block ELSE COLON • block
+
+    $default  reduce using rule 2 (statements)
+
+    statements  go to state 103
+    block       go to state 136
+
+
+State 135
+
+   31 function_def: DEF NAME L_PAREN parameters R_PAREN COLON block •
+
+    $default  reduce using rule 31 (function_def)
+
+
+State 136
+
+   27 if_stmt: IF expression COLON block ELSE COLON block •
+
+    $default  reduce using rule 27 (if_stmt)

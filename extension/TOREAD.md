@@ -13,7 +13,7 @@ X15 - X30 : calle saved
 SP: even though it is stack pointer, use it as return address
 X0 : value returned from function
 X1 - X8 : parameters to pass to function called
-No stack
+A stack
 
 # Notes
 Store all variable values in a map. (name to value)

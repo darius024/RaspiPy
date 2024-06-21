@@ -675,6 +675,6 @@ int main(void) {
     print_ir_program(loopsIR);
     printf("\n\n");
 
-    // testFunDefs();
+    testFunDefs();
     return 0;
 }

@@ -7,10 +7,9 @@
 #include "ir.h"
 #include "ast.h"
 #include "../src/io.h"
-#include "../src/datatypes_as.h"
-#include "../src/decoders.h"
-#include "../src/disassembler.h"
-#include "../src/utils_as.h"
+
+#define MAX_TOKEN_LENGTH 20
+
 
 #define GENERATE_STRING(enum_type) #enum_type
 
@@ -132,32 +131,32 @@ uint32_t getHotSpot(IRInstruction *ir_instr)
     putRegOrImm(assembly_line, ir_instr->src2);
     putRegOrImm(assembly_line, ir_instr->src3);
 
-    InstructionParse *instr = initializeInstructionParse();
-    Instruction *instruction = initializeInstruction();
+    // InstructionParse *instr = initializeInstructionParse();
+    // Instruction *instruction = initializeInstruction();
 
-    // Decompose
-    char *instrSavePntr = NULL;
-    char *token = strtok_r(instr->buff, SPACE, &instrSavePntr);
-    strcpy(instr->instrname, token);
-    instr->type = identifyType(instr->instrname);
-    instr->numTokens = 0;
-    token = strtok_r(NULL, SPACECOMMA, &instrSavePntr);
-    while (token != NULL) {
-        strcpy(instr->tokens[instr->numTokens++], token);
-        token = strtok_r(NULL, SPACECOMMA, &instrSavePntr);
-    }
+    // // Decompose
+    // char *instrSavePntr = NULL;
+    // char *token = strtok_r(instr->buff, SPACE, &instrSavePntr);
+    // strcpy(instr->instrname, token);
+    // instr->type = identifyType(instr->instrname);
+    // instr->numTokens = 0;
+    // token = strtok_r(NULL, SPACECOMMA, &instrSavePntr);
+    // while (token != NULL) {
+    //     strcpy(instr->tokens[instr->numTokens++], token);
+    //     token = strtok_r(NULL, SPACECOMMA, &instrSavePntr);
+    // }
 
-    // Disassemble
-    int disassembleError = disassemble(instr, instruction);
-    checkError(disassembleError);
+    // // Disassemble
+    // int disassembleError = disassemble(instr, instruction);
+    // checkError(disassembleError);
     
-    // Decode
-    uint32_t instrBin = 0;
-    int decodeError = decode(&instrBin, instruction, putBits);
-    checkError(decodeError);
+    // // Decode
+    // uint32_t instrBin = 0;
+    // int decodeError = decode(&instrBin, instruction, putBits);
+    // checkError(decodeError);
 
     // Return
-    return instrBin;
+    return 0;
 }
 
 void addHotSpot(State *state, uint32_t instrBin, int line)

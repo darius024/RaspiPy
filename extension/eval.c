@@ -9,6 +9,7 @@
 #include "optimise_ir.h"
 #include "utils_ir.h"
 
+extern FILE *yyin;
 /*
  * Evaluate expression
  * Assume that we can always compute the value
@@ -17,7 +18,7 @@
 uint8_t evalExpression(IRProgram *program, Expression *expression, State *state, int *line, int count_update)
 {
     // Apply optimizations
-    expression = const_prop(expression, state);
+    //expression = const_prop(expression, state);
     switch (expression->tag) {
         case EXPR_NAME: {
             return getRegisterState(expression->name, state);

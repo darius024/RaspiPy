@@ -4,6 +4,6 @@
 #include "ast.h"
 #include "ir.h"
 
-IRProgram *AST_to_IR(Program *prog);
+IRProgram *ast_to_ir(Program *prog, State *state);
 
 #endif

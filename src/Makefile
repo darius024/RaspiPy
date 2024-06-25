@@ -42,5 +42,3 @@ vector.o:       vector.h
 # Clean rule to remove generated files
 clean:
 	$(RM) $(EMULATE_OBJS) $(ASSEMBLE_OBJS) all
-
-

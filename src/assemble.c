@@ -33,7 +33,7 @@ int decompose(InstructionParse *instr, FILE *input)
         return END_OF_FILE;
     }
     instr->buff[strlen(instr->buff) - 1] = '\0';
-    if (isspace(*(instr->buff))) {
+    if (*(instr->buff) == '\0') {
         return IN_FILE;
     }
 

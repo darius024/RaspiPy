@@ -33,6 +33,7 @@ void addToVector(vector *v, void *element) {
 	}
 	void *target = (char *)(v->data) + (v->currentSize) * (v->elementSize);
 	memcpy(target, element, v->elementSize);
+	free(element);
 	(v->currentSize)++;
 }
 
@@ -44,4 +45,3 @@ void *getFromVector(vector *v, size_t index) {
 	}
 	return (char *)(v->data) + (v->elementSize) * index;
 }
-

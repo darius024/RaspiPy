@@ -11,7 +11,6 @@
 static int64_t evaluate_int_binary_op(const char *op, int64_t left, int64_t right)
 {
     int64_t v;
- 
     if (strcmp(op, "+") == 0) { v = left + right; }
     else if (strcmp(op, "-") == 0) { v = left - right; }
     else if (strcmp(op, "*") == 0) { v = left * right; }
@@ -31,19 +30,16 @@ static int64_t evaluate_int_binary_op(const char *op, int64_t left, int64_t righ
     else if(strcmp(op, "and") == 0) { v = (left && right) ? 1 : 0; } 
     else if(strcmp(op, "or") == 0) { v = (left || right) ? 1 : 0; }
     else { exit(EXIT_FAILURE); }
-    
     return v;
 }
 
 int64_t evaluate_int_unary_op(const char *op, int64_t operand)
 {
     int64_t v;
-
     if (strcmp(op, "-") == 0) { v = -operand; }
     else if (strcmp(op, "+") == 0) { v = +operand; }
     else if (strcmp(op, "~") == 0) { v = ~operand; }
     else { exit(EXIT_FAILURE); }
-    
     return v;
 }
 
@@ -51,11 +47,9 @@ Expression *const_prop(Expression *expr, State *state)
 {
     switch (expr->tag) {
         case (EXPR_NAME): {
-            int64_t value = searchName(expr->name->name, state);
+            int64_t value = get_var_value(state, expr->name->name);
             free_name(expr->name);
-            // printf("ENUM PRINT %d\n", expr -> tag);
             expr->tag = EXPR_INT;
-            // printf("ENUM PRINT AFTER %d\n", expr -> tag);
             expr->int_value = create_int(value);
             return expr;
         }
@@ -81,7 +75,6 @@ Expression *const_prop(Expression *expr, State *state)
             return expr;
         }
         default: {
-            printf("EXITED AT DEFAULT\n");
             exit(EXIT_FAILURE);
         }
     }
@@ -90,7 +83,6 @@ Expression *const_prop(Expression *expr, State *state)
 // assumes all variables within expr have values stored in state
 Expression *const_fold(Expression *expr, State *state)
 {
-    printf("ENUM ENTRY (const_fold) %u\n", expr -> tag);
     switch (expr->tag) {
         case (EXPR_NAME): {
             return const_prop(expr, state);

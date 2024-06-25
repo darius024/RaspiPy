@@ -8,23 +8,22 @@
 #define ZR 31
 #define SP 32 // stack pointer
 #define X0 0
+
 #define MAX_NAMES 16
 #define MAX_VARS 64
 #define MAX_FUNCS 16
+#define MAX_LABELS 32
+#define MAX_DIRECTIVES 32
 #define NOT_USED -1
 #define MAX_MOVE_VALUE (1 << 16)
-#define MEMORY_SIZE_2 (1024 * 1024 * 2)
+
+#define MEMORY_CAPACITY (1024 * 1024 * 32)
 #define STACK_OFFSET 2048
-#define MAX_STACK 1024
-#define MAX_HOTSPOTS 128
-#define MAX_ASSEMBLY_LINE 128
-#define THRESHOLD 16
+#define MAX_STACK_SIZE 32
 
+#define MOVZ_MAX (1 << 21)
 
-typedef struct HotMap {
-    int line;
-    uint32_t instruction;
-} HotMap;
+typedef struct State State;
 
 typedef struct {
     char name[MAX_NAMES];
@@ -34,25 +33,37 @@ typedef struct {
 
 typedef struct {
     char name[MAX_NAMES];
-    int line;
+    int64_t address;
+    State *state;
 } Func;
 
 typedef struct {
+    char name[MAX_NAMES];
+    int64_t address;
+} Label;
+
+typedef struct {
+    char name[MAX_NAMES];
+    int64_t value;
+} Directive;
+
+struct State {
     int map_size;
-    Entry map[MAX_VARS];
+    Entry **map;
+
     int funcs_size;
-    Func funcs[MAX_FUNCS];
+    Func **funcs;
+
+    int symbol_table_size;
+    Label **symbol_table;
+
+    int directives_size;
+    Directive **directives;
+
     int stack_size;
-    int64_t stack[MAX_STACK];
-    int hotspots_size;
-    HotMap hotspots[MAX_HOTSPOTS];
-} State;
-
-
-/*
- * Register state - shared by the whole program
-*/
-extern int registers[NUM_REGISTERS];
+    int64_t stack_pointer;
+    int64_t *stack;
+};
 
 /*
  * Program Intermediate Representation
@@ -61,7 +72,7 @@ extern int registers[NUM_REGISTERS];
 */
 typedef enum {
     IR_ADD, IR_SUB,
-    // adds/subs can be derived
+    IR_ADDS, IR_SUBS,
     IR_CMP,
     // cmn can be derived
     IR_NEG,
@@ -84,7 +95,8 @@ typedef enum {
     IR_LDR,
     IR_STR,
 
-    IR_DIR
+    IR_DIR,
+    IR_LABEL
 } IRType;
 
 typedef enum {
@@ -92,15 +104,22 @@ typedef enum {
 } BranchConditional;
 
 typedef enum {
-    IMM, REG, LABEL
+    IMM,    // immediate value
+    REGX,   // register 64-bit
+    REGW,   // register 32-bit
+    BC,     // branch conditional type
+    DIR,    // directive
+    LABEL   // label address
 } TokenType;
 
 typedef struct {
-    uint8_t reg; // register
+    int value; // register, immediate, branch type, address
     TokenType type;
 } Token;
 
-typedef struct IRInstruction {
+typedef struct IRInstruction IRInstruction;
+
+struct IRInstruction {
     IRType type; // mnemonic
     Token *dest; // 1st token
     Token *src1; // 2nd token
@@ -108,8 +127,8 @@ typedef struct IRInstruction {
     Token *src3; // 4th token
     int line;    // instruction position
     int count;   // number of types executed
-    struct IRInstruction *next;
-} IRInstruction;
+    IRInstruction *next;
+};
 
 typedef struct {
     IRInstruction *head;
@@ -122,7 +141,7 @@ typedef struct {
  *      : map of all variables with their associate value and register
  *      : map of all function definitions and their address
  *      : map of all directives that should be stored in binary under program
- *      : map of all hotspots
+ *      : stack
  * - each instruction has a type and fields
 */
 
@@ -131,18 +150,9 @@ void free_ir_program(IRProgram *program);
 
 Token *create_token(uint8_t value);
 IRInstruction *create_ir_instruction(IRType type, int dest, int src1, int src2, int src3, int *line);
-void free_ir_instruction(struct IRInstruction *instruction);
+void free_ir_instruction(IRInstruction *instruction);
 
-
-// Prototypes
-uint32_t getHotSpot(IRInstruction *ir_instr);
-uint32_t returnHotSpot(State *state, int line);
-void addHotSpot(State *state, uint32_t instrBin, int line);
-
-extern State *create_state(void);
-extern void free_state(State *state);
-
-void putMnemonic(char *assembly_line, IRType type);
-void putRegOrImm(char *assembly_line, Token *token);
+State *create_state(void);
+void free_state(State *state);
 
 #endif

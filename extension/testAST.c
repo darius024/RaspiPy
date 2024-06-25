@@ -2,17 +2,17 @@
 #include <stdbool.h>
 
 #include "ast.h"
-#include "parser.h"
-#include "lexer.h"
-#include "../src/io.h"
-
-#include "testIR.h"
 #include "ast_to_ir.h"
+#include "ir.h"
+#include "lexer.h"
+#include "parser.h"
+#include "print.h"
+#include "../src/io.h"
 
 #define testAssignmentsNum 2
 #define testLoopsNum 2
 #define testFunNum 2
-#define INT_MAX_CHARS 20
+#define testIfNum 2
 
 extern bool sameAST(Statements *ast1, Statements *ast2);
 extern bool sameExpression(Expression *e1, Expression *e2);
@@ -29,6 +29,7 @@ extern int yyerrors;
 const char *arithmFiles[testAssignmentsNum] = {"testData/arithm1.py", "testData/arithm2.py"};
 const char *loopFiles[testLoopsNum] = {"testData/loop1.py", "testData/loop2.py"};
 const char *funFiles[testFunNum] = {"testData/fun1.py", "testData/fun2.py"};
+const char *ifFiles[testIfNum] = {"testData/if1.py", "testDataa/ifelse1.py"};
 
 const char r = 'r';
 
@@ -155,186 +156,6 @@ bool sameStatement(Statement *s1, Statement *s2) {
     }
 }
 
-static char *get_Expression_str(Expression *e) {
-    char *str;
-    switch(e -> tag) {
-        case EXPR_NAME:
-            // e -> name is a pointer to Name, which is a struct containing char *name
-            str = malloc((strlen(e -> name -> name) + 1) * sizeof(char));
-            if (str == NULL) {
-                exit(EXIT_FAILURE);
-            }
-            strcpy(str, e -> name -> name);
-            break;
-        case EXPR_INT: {
-            str = malloc(INT_MAX_CHARS * sizeof(char));
-            if (str == NULL) {
-                exit(EXIT_FAILURE);
-            }
-            snprintf(str, INT_MAX_CHARS * sizeof(char), "%" PRId64, e -> int_value -> value);
-            break;
-        }
-        case EXPR_BINARY_OP: {
-            BinaryOp *b = e -> binary_op;
-            char *s1 = get_Expression_str((b -> left));
-            char *s2 = get_Expression_str((b -> right));
-            str = malloc(strlen(s1) + strlen(s2) + strlen(b -> op) + 5);
-            
-            // combining strings
-            char *p = str;
-
-            *p = '(';
-            p++;
-            strcpy(p, s1);
-            p += strlen(s1);
-            *p = ')';
-            p++;
-
-            strcpy(p, b -> op);
-            p += strlen(b -> op);
-
-            *p = '(';
-            p++;
-            strcpy(p, s2);
-            p += strlen(s2);
-            *p = ')';
-            p++;
-            *p = '\0';
-            // freeing
-            free(s1);
-            free(s2);
-            break;
-        }
-        case EXPR_UNARY_OP: {
-            UnaryOp *u1 = e -> unary_op;
-            char *s1 = get_Expression_str((u1 -> expression));
-            str = malloc(strlen(s1) + strlen(u1 -> op) + 3);
-            
-            // combining
-            char *p = str;
-            strcpy(p, u1 -> op);
-            p += strlen(u1 -> op);
-            *p++ = '(';
-            strcpy(p, s1);
-            *p++ = ')';
-            *p = '\n';
-    
-            // freeing
-            free(s1);
-            break;
-        }
-        case EXPR_FUNCTION_CALL: {
-            FunctionCall *fc = e -> function_call;
-            int arg_num = fc -> arg_count;
-            char **arg_exprs = malloc(arg_num * sizeof(char *));
-            int params_size = 0;
-
-            char *arg_str;
-            int i = 0;
-            for (Arguments *args = fc -> args ; args != NULL ; args = args -> next) {
-                arg_str = get_Expression_str((args -> arg));
-                arg_exprs[i] = arg_str;
-                params_size += strlen(arg_str);
-                i++;
-            }
-            str = malloc((strlen (fc -> name) + 2 + params_size + 2 * ((arg_num >= 1) ? arg_num - 1 : 0)) * sizeof(char) + 1);
-            
-            // combining (with freeing)
-            char *p = str;
-            strcpy(p, fc -> name);
-            p += strlen(fc -> name);
-            *p = '(';
-            p += 1;
-
-            for (int i = 0 ; i < arg_num ; i++) {
-                strcpy(p, arg_exprs[i]);
-                p += strlen(arg_exprs[i]);
-                strcpy(p, ", ");
-
-                free(arg_exprs[i]);
-                p += 2;
-            }
-            p -= 2; // backtrack to get rid of last ", "
-            *p = ')';
-            free(arg_exprs);
-            break;
-         }
-    }
-    return str;
-}
-
-
-
-void print_ast(Statements *statements) {
-    if (statements == NULL) {
-        return;
-    }
-    switch(statements -> statement -> tag) {
-        case ASSIGNMENT_STMT: {
-            AssignmentStmt *assignment_stmt = statements -> statement -> assignment_stmt;
-            printf("%s = ", assignment_stmt -> name);
-            printf("%s\n", get_Expression_str(assignment_stmt -> expression));
-            break;
-        }
-        case FLOW_STMT: {
-            FlowStmt *flow_stmt = statements -> statement -> flow_stmt;
-            printf("%s ", flow_stmt -> name);
-            printf("%s", get_Expression_str(flow_stmt -> expression));
-            printf("\n");
-            break;
-        }
-        case IF_STMT: {
-            IfStmt *if_stmt = statements -> statement -> if_stmt;
-            printf("if %s:\n", get_Expression_str(if_stmt -> condition));
-            printf("  ");
-            print_ast(if_stmt -> then_block);
-            printf("else \n");
-            print_ast(if_stmt -> else_block);
-            break;
-        }
-            
-        case WHILE_STMT: {
-            WhileStmt *while_stmt = statements -> statement -> while_stmt;
-            printf("while %s\n", get_Expression_str(while_stmt -> condition));
-            print_ast(while_stmt -> block);
-            break;
-        }
-        
-        case FOR_STMT: {
-            ForStmt *for_stmt = statements -> statement -> for_stmt;
-            printf("for %s in range(%s)\n", for_stmt -> var, get_Expression_str(for_stmt -> range));
-            printf("  ");
-            print_ast(for_stmt -> block);
-            break;
-        }
-        case FUNCTION_DEF: {
-            FunctionDef *function_def = statements -> statement -> function_def;
-            printf("def %s(", function_def -> name);
-            for (Parameters *current = function_def -> parameters ; current != NULL ; current = current -> next) {
-                if (current -> next != NULL) {
-                    printf("%s, ", current -> parameter -> name);
-                }
-                // is last parameter
-                else {
-                    printf("%s):\n", current -> parameter -> name);
-                }
-            }
-            print_ast(function_def -> body);
-        }
-        default: {
-
-            break;
-        }
-    }
-    print_ast(statements -> next);
-}
-
-void print_program(Program *p) {
-    if (p != NULL) {
-        print_ast(p -> statements);
-    }
-}
-
 Program *testAssignments() {
     // Creating expected results
     Program *expectedPrograms[testAssignmentsNum];
@@ -418,6 +239,11 @@ Program *testAssignments() {
             fprintf(stderr, "Parsing failed\n");
             exit(EXIT_FAILURE);
         }
+    }
+
+    // Free the expected programs
+    for (int i = 0; i < testAssignmentsNum; i++) {
+        free_program(expectedPrograms[i]);
     }
 
     return program;
@@ -504,7 +330,7 @@ Program *testLoops() {
     // Create program
     expectedPrograms[1] = create_program(loop2_statements2);
 
-    // printing for debugging
+    // Printing for debugging
     print_program(expectedPrograms[0]);
     
     // Comparing
@@ -656,6 +482,11 @@ Program *testFunDefs() {
         }
     }
 
+    // Free the expected programs
+    for (int i = 0; i < testFunNum; i++) {
+        free_program(expectedPrograms[i]);
+    }
+
     return program;
 }
 
@@ -663,22 +494,26 @@ Program *testFunDefs() {
 int main(void) {
     printf("Parsing assignment tests.\n");
     Program *assignProgram = testAssignments();
-    // Program *loopsProgram = testLoops();
+    Program *loopProgram = testLoops();
 
-    IRProgram *assignIR = AST_to_IR(assignProgram);
-    // IRProgram *loopsIR = AST_to_IR(loopsProgram);
+    State *assignState = create_state();
+    IRProgram *assignIR = ast_to_ir(assignProgram, assignState);
+    State *loopState = create_state();
+    IRProgram *loopIR = ast_to_ir(loopProgram, loopState);
 
     printf("\n");
     printf("Compiling to assembly.\n");
-    print_ir_program(assignIR);
+
+    print_ir_program(assignIR, assignState, stdout);
+    free_state(assignState);
+    free_program(assignProgram);
+
     printf("\n");
 
-    printf("a gets stored in register w0.\n");
-    printf("b gets stored in register w1.\n");
-
-    // print_ir_program(loopsIR);
-    printf("\n\n");
+    print_ir_program(loopIR, loopState, stdout);
+    free_state(loopState);
+    free_program(loopProgram);
 
     // testFunDefs();
-    return 0;
+    return EXIT_SUCCESS;
 }

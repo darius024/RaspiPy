@@ -65,12 +65,14 @@ int get_top_indent() {
 "return"       { return RETURN; }
 "while"        { return WHILE; }
 
-[0-9]+        { yylval.num = atoi(yytext); return DEC_INTEGER; }
-"0"[xX][0-9a-fA-F]+ { yylval.num = strtol(yytext, NULL, 16); return HEX_INTEGER; }
+[0-9]+        { yylval.num = strtoll(yytext, NULL, 10); return DEC_INTEGER; }
+"0"[xX][0-9a-fA-F]+ { yylval.num = strtoll(yytext, NULL, 16); return HEX_INTEGER; }
 [a-zA-Z_][a-zA-Z_0-9]*  { yylval.str = strdup(yytext); return NAME; }
 
 "("           { return L_PAREN; }
 ")"           { return R_PAREN; }
+"{"           { return L_BRACE; }
+"}"           { return R_BRACE; }
 ","           { return COMMA; }
 ":"           { return COLON; }
 ";"           { return SEMI_COLON; }
@@ -108,7 +110,7 @@ int get_top_indent() {
 [ \r\t\n]+      { /* ignore whitespace */ }
 
 \n {
-    int i;
+    int i = 0;
     int new_indent = 0;
     while (yytext[i] == ' ') {
         new_indent++;

@@ -10,6 +10,7 @@ extern int lineno;
 extern Program *program;
 */
 %{
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,7 +35,7 @@ int yywrap(void) {
 %}
 // all possible types of data associated with tokens
 %union {
-    int num;
+    int64_t num;
     char *str;
     struct Program *program;
     struct Statements *statements;
@@ -59,7 +60,8 @@ int yywrap(void) {
 %token <str> NAME
 %token AND BREAK CONTINUE DEF ELIF ELSE FALSE FOR GLOBAL
 %token IF IN NOT OR RETURN TRUE WHILE
-%token L_PAREN R_PAREN COMMA COLON SEMI_COLON ASSIGN NEG
+%token L_PAREN R_PAREN L_BRACE R_BRACE
+%token COMMA COLON SEMI_COLON ASSIGN NEG
 %token BITWISE_OR BITWISE_XOR BITWISE_AND
 %token LEFT_SHIFT RIGHT_SHIFT ADD SUB MUL DIV MOD
 %token LT GT EQ GE LE NE
@@ -161,7 +163,7 @@ parameters
     ;
 
 block
-    : statements { $$ = $1; }
+    : L_BRACE statements R_BRACE { $$ = $2; }
     ;
 
 expression

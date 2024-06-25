@@ -14,7 +14,7 @@
 // Decode 32-bit (0) or 64-bit mode (1)
 int getMode(char *rd)
 {
-    return (*rd == 'x');
+    return (*rd == 'x' || strcmp(rd, "sp") == 0);
 }
 
 // Decode from hex or dec to int
@@ -36,11 +36,11 @@ int getImmediate(char *imm)
 // Decode <register>
 int getRegister(char *rd)
 {
-    char *p = rd + 1; // remove 'w' or 'x'
-    if (!strncasecmp(p, RSP, 2) || !strncasecmp(p, RZR, 2)) {
+    char *p = rd; // remove 'w' or 'x'
+    if (!strncasecmp(p, RSP, 2) || !strncasecmp(p + 1, RZR, 2)) {
         return ZR_SP;
     }
-    return atoi(p);
+    return atoi(p + 1);
 }
 
 // Decode <literal>

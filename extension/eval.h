@@ -6,6 +6,6 @@
 #include "ir.h"
 
 // Prototypes
-uint8_t evalExpression(IRProgram *program, Expression *expression, State *state, int *line, int count_update);
+uint8_t eval_expression(IRProgram *program, Expression *expression, State *state, int *line, int count_update);
 
 #endif 

@@ -163,7 +163,7 @@ parameters
     ;
 
 block
-    : L_BRACE statements R_BRACE { $$ = $2; }
+    : INDENT statements DEDENT { $$ = $2; }
     ;
 
 expression

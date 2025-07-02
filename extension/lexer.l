@@ -4,6 +4,7 @@
 */
 
 %{
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,37 +14,33 @@
 
 // Stack to hold indentation levels
 #define MAX_INDENT 100
+#define TAB_INDENT 4
+
 int indent_stack[MAX_INDENT];
 int indent_top = 0;
+int new_indent = 0;
+int pending_dedents = 0;
 
 // Current indentation level
 int current_indent = 0;
 
-void push_indent(int indent) {
+void push_indent(int level) {
     if (indent_top < MAX_INDENT) {
-        indent_stack[indent_top++] = indent;
-    } else {
-        fprintf(stderr, "Indentation stack overflow\n");
-        exit(EXIT_FAILURE);
+        indent_stack[indent_top++] = level;
+        return;
     }
+    perror("Pushing stack failed");
+    exit(EXIT_FAILURE);
 }
 
 int pop_indent() {
     if (indent_top > 0) {
         return indent_stack[--indent_top];
-    } else {
-        fprintf(stderr, "Indentation stack underflow\n");
-        exit(EXIT_FAILURE);
     }
+    perror("Popping from stack failed");
+    exit(EXIT_FAILURE);
 }
 
-int get_top_indent() {
-    if (indent_top > 0) {
-        return indent_stack[indent_top - 1];
-    } else {
-        return 0;
-    }
-}
 %}
 
 %option noinput nounput yylineno
@@ -105,27 +102,27 @@ int get_top_indent() {
 "<<="         { return LEFT_SHIFT_ASSIGN; }
 ">>="         { return RIGHT_SHIFT_ASSIGN; }
 
-"#"[^\r\n]*   { /* Skip comments */ }
-
-[ \r\t\n]+      { /* ignore whitespace */ }
-
-\n {
-    int i = 0;
-    int new_indent = 0;
-    while (yytext[i] == ' ') {
+\n[ ]* {
+    int i = 1;
+    new_indent = 0;
+    while (yytext[i++] == ' ') {
         new_indent++;
-        i++;
     }
-    if (new_indent > get_top_indent()) {
-        push_indent(new_indent);
+    
+    if (new_indent > current_indent) {
+        push_indent(current_indent);
+        current_indent = new_indent;
         return INDENT;
-    } else if (new_indent < get_top_indent()) {
-        while (new_indent < get_top_indent()) {
-            pop_indent();
-            return DEDENT;
-        }
+        // INDENT statemetns DEDENT
+    } else if (new_indent < current_indent) {
+        current_indent = pop_indent();
+        return DEDENT;
     }
 }
+
+[ \r\t]+      { /* ignore whitespace */ }
+
+"#"[^\r\n]*   { /* Skip comments */ }
 
 .             { return yytext[0]; } // Default rule to return single characters
 

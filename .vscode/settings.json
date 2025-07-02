@@ -1,0 +1,17 @@
+{
+    "files.associations": {
+        "utils_ir.h": "c",
+        "hotspot.h": "c",
+        "ir.h": "c",
+        "state.h": "c",
+        "io.h": "c",
+        "ctype.h": "c",
+        "datatypes_as.h": "c",
+        "decoders.h": "c",
+        "stdlib.h": "c",
+        "stdbool.h": "c",
+        "constants.h": "c",
+        "instructions.h": "c",
+        "disassembler.h": "c"
+    }
+}

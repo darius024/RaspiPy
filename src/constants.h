@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 
-#define EXIT_PROGRAM(msg) {perror(msg "\n"); exit(EXIT_FAILURE);}
+#define EXIT_PROGRAM(msg) do {perror(msg "\n"); exit(EXIT_FAILURE);} while(0)
 #define NOT_FOUND -1
 
 #define INSTR_BYTES 4
